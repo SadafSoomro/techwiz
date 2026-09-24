@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../models/event_models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/community_provider.dart';
 import '../providers/event_provider.dart';
+import '../providers/shop_provider.dart';
+import '../providers/ai_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/event_theme.dart';
+import '../theme/shop_theme.dart';
 import '../widgets/fandom_logo.dart';
+import '../widgets/product_image.dart';
 import 'bookmarks_screen.dart';
 import 'discussions_screen.dart';
 import 'event_calendar_screen.dart';
@@ -15,6 +20,11 @@ import 'event_categories_screen.dart';
 import 'event_details_screen.dart';
 import 'event_map_screen.dart';
 import 'events_screen.dart';
+import 'ai_helper_screen.dart';
+import 'cart_screen.dart';
+import 'orders_screen.dart';
+import 'shop_screen.dart';
+import 'wishlist_screen.dart';
 import 'login_screen.dart';
 import 'notifications_screen.dart';
 import 'saved_events_screen.dart';
@@ -45,6 +55,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final events = context.read<EventProvider>();
       events.loadOverview();
       events.loadEvents();
+
+      // MEMBER 5 - Merchandise Store + AI Fan Helper: warm up the shop data.
+      final shop = context.read<ShopProvider>();
+      shop.loadOverview();
+      shop.loadFilters();
+      shop.loadProducts();
+      shop.loadPersonal();
+      context.read<AiProvider>().initialise(restoreHistory: false);
     });
   }
 
@@ -54,20 +72,40 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => AlertDialog(
         backgroundColor: AppTheme.cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Logout Confirmation', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to log out of FANDOM VERSE?', style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+        title: Text(
+          'Logout Confirmation',
+          style: GoogleFonts.outfit(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to log out of FANDOM VERSE?',
+          style: GoogleFonts.inter(color: AppTheme.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel', style: GoogleFonts.inter(color: AppTheme.textSecondary)),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.inter(color: AppTheme.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.errorColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: Text('Logout', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Logout',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -94,25 +132,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
-        ),
+        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
         child: SafeArea(
           child: IndexedStack(
             index: _currentIndex,
             children: [
               // Tab 0: Home Dashboard (Screen 5)
               _buildHomeDashboard(userName),
-              
+
               // Tab 1: Events Section  (MEMBER 4 - Events & Maps)
               const EventsScreen(embedded: true),
-              
-              // Tab 2: Shop / Merch Section
-              _buildPlaceholderTab('Shop & Merchandise', Icons.shopping_bag_rounded),
-              
+
+              // Tab 2: Shop / Merchandise Section (MEMBER 5 - Merchandise Store)
+              const ShopScreen(embedded: true),
+
               // Tab 3: Bookmarks  (MEMBER 3 - Search & Community)
               const BookmarksScreen(embedded: true),
-              
+
               // Tab 4: Profile & Account Settings (Screen 18)
               _buildProfileTab(userName, userEmail, authProvider),
             ],
@@ -122,7 +158,9 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppTheme.cardColor,
-          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08))),
+          border: Border(
+            top: BorderSide(color: Colors.white.withOpacity(0.08)),
+          ),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
@@ -131,14 +169,32 @@ class _HomeScreenState extends State<HomeScreen> {
           type: BottomNavigationBarType.fixed,
           selectedItemColor: AppTheme.secondaryColor,
           unselectedItemColor: AppTheme.textMuted,
-          selectedLabelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
+          selectedLabelStyle: GoogleFonts.inter(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
           unselectedLabelStyle: GoogleFonts.inter(fontSize: 11),
           items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.event_rounded), label: 'Events'),
-            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag_outlined), label: 'Shop'),
-            BottomNavigationBarItem(icon: Icon(Icons.bookmark_outline_rounded), label: 'Bookmarks'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home_rounded),
+              label: 'Home',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.event_rounded),
+              label: 'Events',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.shopping_bag_outlined),
+              label: 'Shop',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.bookmark_outline_rounded),
+              label: 'Bookmarks',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline_rounded),
+              label: 'Profile',
+            ),
           ],
         ),
       ),
@@ -147,6 +203,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomeDashboard(String userName) {
     final eventProvider = context.watch<EventProvider>();
+    final shopProvider = context.watch<ShopProvider>();
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
@@ -219,7 +276,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     backgroundColor: AppTheme.primaryColor,
                     child: Text(
                       userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                      style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -231,11 +291,18 @@ class _HomeScreenState extends State<HomeScreen> {
           // Greeting Text
           Text(
             'Hello, $userName! 👋',
-            style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
+            style: GoogleFonts.outfit(
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           Text(
             'Good to see you back!',
-            style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textSecondary),
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: AppTheme.textSecondary,
+            ),
           ),
           const SizedBox(height: 20),
 
@@ -256,7 +323,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
                       hintText: 'Search fandoms, news, events...',
-                      hintStyle: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 14),
+                      hintStyle: GoogleFonts.inter(
+                        color: AppTheme.textMuted,
+                        fontSize: 14,
+                      ),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
@@ -275,11 +345,21 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 'Trending Now',
-                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               TextButton(
                 onPressed: () {},
-                child: Text('View All', style: GoogleFonts.inter(color: AppTheme.primaryColor, fontSize: 13)),
+                child: Text(
+                  'View All',
+                  style: GoogleFonts.inter(
+                    color: AppTheme.primaryColor,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ],
           ),
@@ -321,24 +401,38 @@ class _HomeScreenState extends State<HomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.black.withOpacity(0.4),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           'HOT FEATURED',
-                          style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'One Piece - Wano Arc Finale',
-                        style: GoogleFonts.outfit(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       Text(
                         'New episode & latest community updates',
-                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
+                        style: GoogleFonts.inter(
+                          color: Colors.white70,
+                          fontSize: 13,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       ElevatedButton(
@@ -346,10 +440,20 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
                           foregroundColor: AppTheme.primaryColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                         ),
-                        child: Text('Read More', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+                        child: Text(
+                          'Read More',
+                          style: GoogleFonts.outfit(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -362,18 +466,42 @@ class _HomeScreenState extends State<HomeScreen> {
           // Your Fandoms Horizontal Chips
           Text(
             'Your Fandoms',
-            style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+            style: GoogleFonts.outfit(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           const SizedBox(height: 14),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildFandomCategoryChip('Anime', Icons.auto_awesome_rounded, AppTheme.secondaryColor),
-                _buildFandomCategoryChip('Gaming', Icons.sports_esports_rounded, Colors.blue),
-                _buildFandomCategoryChip('Movies', Icons.movie_creation_rounded, Colors.amber),
-                _buildFandomCategoryChip('Comics', Icons.menu_book_rounded, Colors.orange),
-                _buildFandomCategoryChip('K-Pop', Icons.music_note_rounded, Colors.green),
+                _buildFandomCategoryChip(
+                  'Anime',
+                  Icons.auto_awesome_rounded,
+                  AppTheme.secondaryColor,
+                ),
+                _buildFandomCategoryChip(
+                  'Gaming',
+                  Icons.sports_esports_rounded,
+                  Colors.blue,
+                ),
+                _buildFandomCategoryChip(
+                  'Movies',
+                  Icons.movie_creation_rounded,
+                  Colors.amber,
+                ),
+                _buildFandomCategoryChip(
+                  'Comics',
+                  Icons.menu_book_rounded,
+                  Colors.orange,
+                ),
+                _buildFandomCategoryChip(
+                  'K-Pop',
+                  Icons.music_note_rounded,
+                  Colors.green,
+                ),
               ],
             ),
           ),
@@ -387,15 +515,27 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 'Community',
-                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               TextButton(
                 onPressed: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const DiscussionsScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const DiscussionsScreen(),
+                    ),
                   );
                 },
-                child: Text('All discussions', style: GoogleFonts.inter(color: AppTheme.primaryColor, fontSize: 13)),
+                child: Text(
+                  'All discussions',
+                  style: GoogleFonts.inter(
+                    color: AppTheme.primaryColor,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ],
           ),
@@ -428,9 +568,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 'Search',
                 Icons.search_rounded,
                 AppTheme.accentCyan,
-                () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SearchScreen()),
-                ),
+                () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const SearchScreen())),
               ),
               const SizedBox(width: 12),
               _buildCommunityTile(
@@ -451,11 +591,21 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Text(
                 'Events Near You',
-                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
               TextButton(
                 onPressed: () => setState(() => _currentIndex = 1),
-                child: Text('See all', style: GoogleFonts.inter(color: EventTheme.primary, fontSize: 13)),
+                child: Text(
+                  'See all',
+                  style: GoogleFonts.inter(
+                    color: EventTheme.primary,
+                    fontSize: 13,
+                  ),
+                ),
               ),
             ],
           ),
@@ -478,7 +628,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   Expanded(
                     child: Text(
                       'Loading upcoming events...',
-                      style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 13),
+                      style: GoogleFonts.inter(
+                        color: AppTheme.textSecondary,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ],
@@ -501,7 +654,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 Icons.calendar_month_rounded,
                 EventTheme.amber,
                 () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const EventCalendarScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const EventCalendarScreen(),
+                  ),
                 ),
               ),
             ],
@@ -514,7 +669,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 Icons.category_rounded,
                 EventTheme.primary,
                 () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const EventCategoriesScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const EventCategoriesScreen(),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -528,7 +685,208 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
+          const SizedBox(height: 28),
+
+          // ============================================================
+          // MEMBER 5 - Merchandise Store + AI Fan Helper quick access
+          // ============================================================
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Fandom Shop',
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _currentIndex = 2),
+                child: Text(
+                  'See all',
+                  style: GoogleFonts.inter(
+                    color: ShopTheme.secondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildShopHeroCard(shopProvider),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildCommunityTile(
+                'Wishlist (${shopProvider.wishlistCount})',
+                Icons.favorite_rounded,
+                ShopTheme.secondary,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const WishlistScreen()),
+                ),
+              ),
+              const SizedBox(width: 12),
+              _buildCommunityTile(
+                'Cart (${shopProvider.cartQuantity})',
+                Icons.shopping_bag_rounded,
+                ShopTheme.primary,
+                () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const CartScreen())),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildCommunityTile(
+                'My Orders',
+                Icons.receipt_long_rounded,
+                ShopTheme.green,
+                () => Navigator.of(
+                  context,
+                ).push(MaterialPageRoute(builder: (_) => const OrdersScreen())),
+              ),
+              const SizedBox(width: 12),
+              _buildCommunityTile(
+                'AI Helper',
+                Icons.auto_awesome_rounded,
+                ShopTheme.accent,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AiHelperScreen()),
+                ),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  /// Compact shop highlight card for the home dashboard (MEMBER 5).
+  Widget _buildShopHeroCard(ShopProvider shop) {
+    final deals = shop.deals.take(3).toList();
+
+    return GestureDetector(
+      onTap: () => setState(() => _currentIndex = 2),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: const BoxDecoration(gradient: ShopTheme.dealGradient),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: Opacity(
+                  opacity: 0.35,
+                  child: Image.asset(
+                    ShopTheme.dealsBanner,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stack) =>
+                        const SizedBox.shrink(),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 9,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.22),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'DEALS OF THE WEEK',
+                            style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.9,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '${shop.stats.totalDeals} offers',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Official merch, fan prices',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      shop.cartQuantity > 0
+                          ? '${shop.cartQuantity} item(s) in your cart - checkout whenever you like'
+                          : 'Figures, tees, box sets and digital art from the fandom vault',
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 11.5,
+                        height: 1.35,
+                      ),
+                    ),
+                    if (deals.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          ...deals.map(
+                            (product) => Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ProductImage(
+                                imageUrl: product.imageUrl,
+                                category: product.category,
+                                width: 42,
+                                height: 42,
+                                radius: 11,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Row(
+                            children: [
+                              Text(
+                                'Shop now',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const Icon(
+                                Icons.arrow_forward_rounded,
+                                color: Colors.white,
+                                size: 16,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -569,7 +927,10 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.32),
                     borderRadius: BorderRadius.circular(10),
@@ -599,14 +960,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_rounded, color: Colors.white70, size: 13),
+                    const Icon(
+                      Icons.location_on_rounded,
+                      color: Colors.white70,
+                      size: 13,
+                    ),
                     const SizedBox(width: 5),
                     Expanded(
                       child: Text(
                         '${event.venue}, ${event.city}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 11.5),
+                        style: GoogleFonts.inter(
+                          color: Colors.white70,
+                          fontSize: 11.5,
+                        ),
                       ),
                     ),
                     Text(
@@ -685,20 +1053,31 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
             child: Icon(icon, color: color, size: 18),
           ),
           const SizedBox(width: 10),
           Text(
             title,
-            style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+            style: GoogleFonts.inter(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildProfileTab(String userName, String userEmail, AuthProvider authProvider) {
+  Widget _buildProfileTab(
+    String userName,
+    String userEmail,
+    AuthProvider authProvider,
+  ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -716,7 +1095,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 backgroundColor: AppTheme.cardColor,
                 child: Text(
                   userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                  style: GoogleFonts.outfit(fontSize: 42, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: GoogleFonts.outfit(
+                    fontSize: 42,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
@@ -724,11 +1107,18 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 16),
           Text(
             userName,
-            style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+            style: GoogleFonts.outfit(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
           Text(
             userEmail,
-            style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textSecondary),
+            style: GoogleFonts.inter(
+              fontSize: 14,
+              color: AppTheme.textSecondary,
+            ),
           ),
           const SizedBox(height: 20),
 
@@ -743,7 +1133,11 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.verified_user_rounded, color: AppTheme.successColor, size: 18),
+                const Icon(
+                  Icons.verified_user_rounded,
+                  color: AppTheme.successColor,
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Authenticated via Provider State',
@@ -759,20 +1153,50 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 32),
 
           // Settings items list
-          _buildProfileOptionItem(Icons.person_outline_rounded, 'Edit Profile', () {}),
-          _buildProfileOptionItem(Icons.bookmark_outline_rounded, 'My Saved Fandoms', () {}),
+          _buildProfileOptionItem(
+            Icons.person_outline_rounded,
+            'Edit Profile',
+            () {},
+          ),
+          _buildProfileOptionItem(
+            Icons.bookmark_outline_rounded,
+            'My Saved Fandoms',
+            () {},
+          ),
+          // MEMBER 5 - Merchandise Store shortcuts
+          _buildProfileOptionItem(
+            Icons.receipt_long_rounded,
+            'Purchase History',
+            () => Navigator.of(context)
+                .push(MaterialPageRoute(builder: (_) => const OrdersScreen())),
+          ),
+          _buildProfileOptionItem(
+            Icons.favorite_border_rounded,
+            'My Wishlist',
+            () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const WishlistScreen())),
+          ),
           _buildProfileOptionItem(Icons.settings_outlined, 'Settings', () {}),
           const SizedBox(height: 16),
 
           // Logout Button
           ListTile(
             onTap: _handleLogout,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             tileColor: AppTheme.errorColor.withOpacity(0.12),
-            leading: const Icon(Icons.logout_rounded, color: AppTheme.errorColor),
+            leading: const Icon(
+              Icons.logout_rounded,
+              color: AppTheme.errorColor,
+            ),
             title: Text(
               'Logout',
-              style: GoogleFonts.inter(color: AppTheme.errorColor, fontWeight: FontWeight.bold),
+              style: GoogleFonts.inter(
+                color: AppTheme.errorColor,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -780,7 +1204,11 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildProfileOptionItem(IconData icon, String title, VoidCallback onTap) {
+  Widget _buildProfileOptionItem(
+    IconData icon,
+    String title,
+    VoidCallback onTap,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: ListTile(
@@ -788,29 +1216,17 @@ class _HomeScreenState extends State<HomeScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         tileColor: AppTheme.cardColor,
         leading: Icon(icon, color: AppTheme.textSecondary),
-        title: Text(title, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500)),
-        trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted),
-      ),
-    );
-  }
-
-  Widget _buildPlaceholderTab(String title, IconData icon) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 64, color: AppTheme.secondaryColor),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+        title: Text(
+          title,
+          style: GoogleFonts.inter(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Explore & discover content in $title',
-            style: GoogleFonts.inter(color: AppTheme.textSecondary),
-          ),
-        ],
+        ),
+        trailing: const Icon(
+          Icons.chevron_right_rounded,
+          color: AppTheme.textMuted,
+        ),
       ),
     );
   }

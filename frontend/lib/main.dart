@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import 'providers/auth_provider.dart';
 import 'providers/community_provider.dart';
 import 'providers/event_provider.dart';
+import 'providers/shop_provider.dart';
+import 'providers/ai_provider.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -23,6 +26,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => CommunityProvider()),
         // MEMBER 4 - Events & Maps
         ChangeNotifierProvider(create: (_) => EventProvider()),
+        // MEMBER 5 - Merchandise Store + AI Fan Helper
+        ChangeNotifierProvider(create: (_) => ShopProvider()),
+        ChangeNotifierProvider(create: (_) => AiProvider()),
       ],
       child: MaterialApp(
         title: 'FANDOM VERSE',
