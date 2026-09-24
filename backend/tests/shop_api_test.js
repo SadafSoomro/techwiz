@@ -327,6 +327,29 @@ async function main() {
   // =====================================================================
   // 7. CHECKOUT (simulated) + ORDERS
   // =====================================================================
+
+  // Make this test self-sufficient: checkout needs at least one cart line.
+  // The line above (DELETE /shop/cart/:id) can leave the cart empty, and a
+  // freshly seeded database starts with an empty cart too, so top it up when
+  // needed instead of assuming the seeder's demo cart is still there.
+  let cartBeforeCheckout = await hit("GET", "/shop/cart");
+
+  if ((cartBeforeCheckout.json.item_count || 0) === 0) {
+    const seedProductId = all.json.products?.[0]?.id;
+    await hit("POST", "/shop/cart", { product_id: seedProductId, quantity: 1 });
+
+    cartBeforeCheckout = await hit("GET", "/shop/cart");
+    log("POST /shop/cart (checkout pre-requisite)", cartBeforeCheckout, (j) => ({
+      item_count: j.item_count,
+      subtotal: j.subtotal,
+      items: (j.items || []).map(cartLine),
+    }));
+    check(
+      (cartBeforeCheckout.json.item_count || 0) > 0,
+      "cart has an item before checkout"
+    );
+  }
+
   const checkout = await hit("POST", "/shop/checkout", {
     shipping_name: "Emma Carter",
     shipping_phone: "+92 300 1234567",
