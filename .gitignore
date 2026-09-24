@@ -12,3 +12,4 @@ backend/mydb.sqlite
 backend/mydb.sqlite-journal
 backend/tests/report.txt
 backend/tests/events_report.txt
+backend/tests/shop_report.txt
