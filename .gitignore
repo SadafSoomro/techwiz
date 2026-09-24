@@ -5,3 +5,10 @@ node_modules/
 !**/.env.example
 .dart_tool/
 build/
+__pycache__/
+
+# Local SQLite database + generated API test reports
+backend/mydb.sqlite
+backend/mydb.sqlite-journal
+backend/tests/report.txt
+backend/tests/events_report.txt

@@ -4,6 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "node server.js",
+    "seed": "node database/seedCommunity.js",
+    "seed:events": "node database/seedEvents.js",
+    "seed:all": "node database/seedCommunity.js && node database/seedEvents.js",
+    "test:api": "node tests/community_api_test.js",
+    "test:events": "node tests/events_api_test.js",
+    "test:all": "node tests/community_api_test.js && node tests/events_api_test.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

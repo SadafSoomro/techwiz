@@ -27,4 +27,63 @@ class ApiConfig {
   static String get resetPasswordUrl => '$baseUrl/auth/reset-password';
   static String get googleLoginUrl => '$baseUrl/auth/google';
   static String get getUsersUrl => '$baseUrl/users/getall';
+
+  // =====================================================================
+  // MEMBER 3 - Search & Community endpoints
+  // =====================================================================
+
+  // Search module
+  static String get searchUrl => '$baseUrl/search';
+  static String get searchFiltersUrl => '$baseUrl/search/filters';
+  static String get searchTrendingUrl => '$baseUrl/search/trending';
+  static String get searchSuggestionsUrl => '$baseUrl/search/suggestions';
+  static String get searchHistoryUrl => '$baseUrl/search/history';
+
+  // Posts / Discussions module
+  static String get postsUrl => '$baseUrl/posts';
+  static String get discussionsUrl => '$baseUrl/posts/discussions';
+  static String postDetailsUrl(int id) => '$baseUrl/posts/$id';
+  static String postLikeUrl(int id) => '$baseUrl/posts/$id/like';
+  static String postCommentsUrl(int id) => '$baseUrl/posts/$id/comments';
+
+  // Community module
+  static String get communityOverviewUrl => '$baseUrl/community/overview';
+  static String get communityProfileUrl => '$baseUrl/community/profile';
+  static String get bookmarksUrl => '$baseUrl/community/bookmarks';
+  static String toggleBookmarkUrl(int postId) =>
+      '$baseUrl/community/bookmarks/$postId';
+  static String get notificationsUrl => '$baseUrl/community/notifications';
+  static String get markAllNotificationsReadUrl =>
+      '$baseUrl/community/notifications/read-all';
+  static String markNotificationReadUrl(int id) =>
+      '$baseUrl/community/notifications/$id/read';
+  static String deleteNotificationUrl(int id) =>
+      '$baseUrl/community/notifications/$id';
+  static String userProfileUrl(int userId) =>
+      '$baseUrl/community/users/$userId/profile';
+  static String toggleFollowUrl(int userId) =>
+      '$baseUrl/community/users/$userId/follow';
+  static String followersUrl(int userId) =>
+      '$baseUrl/community/users/$userId/followers';
+  static String followingUrl(int userId) =>
+      '$baseUrl/community/users/$userId/following';
+
+  // =====================================================================
+  // MEMBER 4 - Events & Maps endpoints
+  // =====================================================================
+
+  static String get eventsUrl => '$baseUrl/events';
+  static String get eventsNearbyUrl => '$baseUrl/events/nearby';
+  static String get eventsMapUrl => '$baseUrl/events/map';
+  static String get eventsOverviewUrl => '$baseUrl/events/overview';
+  static String get eventsCategoriesUrl => '$baseUrl/events/categories';
+  static String get eventsCitiesUrl => '$baseUrl/events/cities';
+  static String get eventsCalendarUrl => '$baseUrl/events/calendar';
+  static String get eventsSavedUrl => '$baseUrl/events/saved/mine';
+  static String get eventsTicketsUrl => '$baseUrl/events/tickets/mine';
+  static String eventTicketUrl(int ticketId) => '$baseUrl/events/tickets/$ticketId';
+  static String eventDetailsUrl(int eventId) => '$baseUrl/events/$eventId';
+  static String eventSaveUrl(int eventId) => '$baseUrl/events/$eventId/save';
+  static String eventBookTicketUrl(int eventId) =>
+      '$baseUrl/events/$eventId/tickets';
 }

@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import '../models/event_models.dart';
 import '../providers/auth_provider.dart';
+import '../providers/community_provider.dart';
+import '../providers/event_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/event_theme.dart';
 import '../widgets/fandom_logo.dart';
+import 'bookmarks_screen.dart';
+import 'discussions_screen.dart';
+import 'event_calendar_screen.dart';
+import 'event_categories_screen.dart';
+import 'event_details_screen.dart';
+import 'event_map_screen.dart';
+import 'events_screen.dart';
 import 'login_screen.dart';
+import 'notifications_screen.dart';
+import 'saved_events_screen.dart';
+import 'search_screen.dart';
+import 'trending_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -15,6 +30,23 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    // MEMBER 3 - Search & Community: warm up the community data.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final community = context.read<CommunityProvider>();
+      community.refreshUnreadCount();
+      community.loadOverview();
+
+      // MEMBER 4 - Events & Maps: warm up the events data.
+      final events = context.read<EventProvider>();
+      events.loadOverview();
+      events.loadEvents();
+    });
+  }
 
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
@@ -72,14 +104,14 @@ class _HomeScreenState extends State<HomeScreen> {
               // Tab 0: Home Dashboard (Screen 5)
               _buildHomeDashboard(userName),
               
-              // Tab 1: Events Section
-              _buildPlaceholderTab('Events Section', Icons.event_available_rounded),
+              // Tab 1: Events Section  (MEMBER 4 - Events & Maps)
+              const EventsScreen(embedded: true),
               
               // Tab 2: Shop / Merch Section
               _buildPlaceholderTab('Shop & Merchandise', Icons.shopping_bag_rounded),
               
-              // Tab 3: Bookmarks
-              _buildPlaceholderTab('Saved Fandoms', Icons.bookmark_rounded),
+              // Tab 3: Bookmarks  (MEMBER 3 - Search & Community)
+              const BookmarksScreen(embedded: true),
               
               // Tab 4: Profile & Account Settings (Screen 18)
               _buildProfileTab(userName, userEmail, authProvider),
@@ -114,6 +146,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHomeDashboard(String userName) {
+    final eventProvider = context.watch<EventProvider>();
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -128,11 +162,57 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   IconButton(
                     icon: const Icon(Icons.search_rounded, color: Colors.white),
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SearchScreen()),
+                      );
+                    },
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
-                    onPressed: () {},
+                  // Notifications with unread badge (MEMBER 3)
+                  Consumer<CommunityProvider>(
+                    builder: (context, community, _) => Stack(
+                      children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.notifications_none_rounded,
+                            color: Colors.white,
+                          ),
+                          onPressed: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const NotificationsScreen(),
+                              ),
+                            );
+                            if (context.mounted) community.refreshUnreadCount();
+                          },
+                        ),
+                        if (community.unreadCount > 0)
+                          Positioned(
+                            right: 6,
+                            top: 6,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.secondaryColor,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                community.unreadCount > 9
+                                    ? '9+'
+                                    : '${community.unreadCount}',
+                                style: GoogleFonts.inter(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                   CircleAvatar(
                     radius: 18,
@@ -297,7 +377,297 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
           ),
+          const SizedBox(height: 28),
+
+          // ============================================================
+          // MEMBER 3 - Search & Community quick access
+          // ============================================================
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Community',
+                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const DiscussionsScreen()),
+                  );
+                },
+                child: Text('All discussions', style: GoogleFonts.inter(color: AppTheme.primaryColor, fontSize: 13)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildCommunityTile(
+                'Trending',
+                Icons.local_fire_department_rounded,
+                AppTheme.secondaryColor,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const TrendingScreen()),
+                ),
+              ),
+              const SizedBox(width: 12),
+              _buildCommunityTile(
+                'Deep Dive',
+                Icons.auto_awesome_rounded,
+                AppTheme.primaryColor,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const DiscussionsScreen()),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildCommunityTile(
+                'Search',
+                Icons.search_rounded,
+                AppTheme.accentCyan,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SearchScreen()),
+                ),
+              ),
+              const SizedBox(width: 12),
+              _buildCommunityTile(
+                'Bookmarks',
+                Icons.bookmark_rounded,
+                Colors.amber,
+                () => setState(() => _currentIndex = 3),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+
+          // ============================================================
+          // MEMBER 4 - Events & Maps quick access
+          // ============================================================
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Events Near You',
+                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _currentIndex = 1),
+                child: Text('See all', style: GoogleFonts.inter(color: EventTheme.primary, fontSize: 13)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          if (eventProvider.nextEvent != null)
+            _buildNextEventCard(eventProvider.nextEvent!)
+          else
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppTheme.cardColor,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.white.withOpacity(0.08)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.event_busy_rounded, color: EventTheme.primary),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Loading upcoming events...',
+                      style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 13),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildCommunityTile(
+                'Map',
+                Icons.map_rounded,
+                EventTheme.teal,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const EventMapScreen()),
+                ),
+              ),
+              const SizedBox(width: 12),
+              _buildCommunityTile(
+                'Calendar',
+                Icons.calendar_month_rounded,
+                EventTheme.amber,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const EventCalendarScreen()),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildCommunityTile(
+                'Categories',
+                Icons.category_rounded,
+                EventTheme.primary,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const EventCategoriesScreen()),
+                ),
+              ),
+              const SizedBox(width: 12),
+              _buildCommunityTile(
+                'Interested',
+                Icons.favorite_rounded,
+                EventTheme.secondary,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SavedEventsScreen()),
+                ),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  /// Compact "next event" card for the home dashboard (MEMBER 4).
+  Widget _buildNextEventCard(EventItem event) {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => EventDetailsScreen(eventId: event.id, event: event),
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: EventTheme.featuredGradient,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: EventTheme.primary.withOpacity(0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 7),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              right: -22,
+              bottom: -26,
+              child: Icon(
+                EventTheme.categoryIcon(event.category),
+                size: 120,
+                color: Colors.white.withOpacity(0.15),
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.32),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    EventTheme.countdown(event.daysUntil).toUpperCase(),
+                    style: GoogleFonts.inter(
+                      color: Colors.white,
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  event.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                    height: 1.25,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_rounded, color: Colors.white70, size: 13),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        '${event.venue}, ${event.city}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 11.5),
+                      ),
+                    ),
+                    Text(
+                      EventTheme.prettyDate(event.eventDate),
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Small quick-access card used by the community section of the dashboard.
+  Widget _buildCommunityTile(
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          decoration: BoxDecoration(
+            color: AppTheme.cardColor,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.18),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  label,
+                  style: GoogleFonts.inter(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
