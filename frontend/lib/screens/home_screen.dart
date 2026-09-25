@@ -4,10 +4,12 @@ import 'package:provider/provider.dart';
 
 import '../models/content_models.dart';
 import '../models/profile_models.dart';
+import '../providers/ai_provider.dart';
 import '../providers/community_provider.dart';
 import '../providers/content_provider.dart';
 import '../providers/event_provider.dart';
 import '../providers/profile_provider.dart';
+import '../providers/shop_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/content_theme.dart';
 import '../theme/event_theme.dart';
@@ -37,6 +39,7 @@ import 'profile_screen.dart';
 import 'recent_content_screen.dart';
 import 'saved_events_screen.dart';
 import 'search_screen.dart';
+import 'shop_screen.dart';
 import 'social_tasks_screen.dart';
 import 'trending_screen.dart';
 import 'video_player_screen.dart';
@@ -46,7 +49,7 @@ import 'video_player_screen.dart';
 /// Tab 0  Home Dashboard   -> MEMBER 1 (Profile, Fandom Selection & Home)
 /// Tab 1  Explore          -> MEMBER 2 (Fandom Content)
 /// Tab 2  Events           -> MEMBER 4 (Events & Maps)
-/// Tab 3  Shop             -> MEMBER 5 (Merchandise, placeholder)
+/// Tab 3  Shop             -> MEMBER 5 (Merchandise Store + AI Fan Helper)
 /// Tab 4  Saved            -> MEMBER 3 (Search & Community bookmarks)
 /// Tab 5  Profile          -> MEMBER 1 (Profile & account)
 class HomeScreen extends StatefulWidget {
@@ -80,6 +83,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final events = context.read<EventProvider>();
       events.loadOverview();
       events.loadEvents();
+
+      // MEMBER 5 - Merchandise Store + AI Fan Helper.
+      final shop = context.read<ShopProvider>();
+      shop.loadOverview();
+      shop.loadFilters();
+      shop.loadProducts();
+      shop.loadPersonal();
+      context.read<AiProvider>().initialise(restoreHistory: false);
     });
   }
 
@@ -101,12 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _HomeDashboardTab(onOpenTab: _openTab),
               const DiscoverScreen(embedded: true),
               const EventsScreen(embedded: true),
-              _PlaceholderTab(
-                title: 'Shop & Merchandise',
-                message: 'The official merchandise store is on its way.',
-                icon: Icons.shopping_bag_rounded,
-                color: const Color(0xFFEC4899),
-              ),
+              const ShopScreen(embedded: true),
               const BookmarksScreen(embedded: true),
               const ProfileScreen(embedded: true),
             ],
@@ -208,66 +214,6 @@ class _FandomNavBar extends StatelessWidget {
                 ),
               );
             }),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// MEMBER 5 placeholder (kept so the tab bar stays complete)
-// ---------------------------------------------------------------------------
-class _PlaceholderTab extends StatelessWidget {
-  const _PlaceholderTab({
-    required this.title,
-    required this.message,
-    required this.icon,
-    required this.color,
-  });
-
-  final String title;
-  final String message;
-  final IconData icon;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: FadeSlideIn(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 38, color: color),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.outfit(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  color: AppTheme.textSecondary,
-                  fontSize: 13,
-                ),
-              ),
-            ],
           ),
         ),
       ),

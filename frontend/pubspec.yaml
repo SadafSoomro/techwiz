@@ -71,6 +71,9 @@ flutter:
     - assets/images/content/
     # MEMBER 1 - avatar presets
     - assets/images/avatars/
+    # MEMBER 5 - Merchandise Store product artwork + shop banners
+    - assets/images/products/
+    - assets/images/shop/
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

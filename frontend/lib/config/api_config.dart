@@ -118,4 +118,40 @@ class ApiConfig {
   static String contentViewUrl(int id) => '$baseUrl/content/$id/view';
   static String contentOfflineToggleUrl(int id) => '$baseUrl/content/$id/offline';
   static String contentLikeUrl(int id) => '$baseUrl/content/$id/like';
+
+  // =====================================================================
+  // MEMBER 5 - Merchandise Store + AI Fan Helper endpoints
+  // =====================================================================
+
+  // Shop home / catalogue
+  static String get shopOverviewUrl => '$baseUrl/shop/overview';
+  static String get shopCategoriesUrl => '$baseUrl/shop/categories';
+  static String get shopFandomsUrl => '$baseUrl/shop/fandoms';
+  static String get shopProductsUrl => '$baseUrl/shop/products';
+  static String shopProductUrl(int productId) =>
+      '$baseUrl/shop/products/$productId';
+
+  // Wishlist + price drop alerts
+  static String get wishlistUrl => '$baseUrl/shop/wishlist';
+  static String wishlistToggleUrl(int productId) =>
+      '$baseUrl/shop/wishlist/$productId';
+  static String get priceAlertsUrl => '$baseUrl/shop/wishlist/alerts';
+  static String get priceAlertsCheckUrl =>
+      '$baseUrl/shop/wishlist/alerts/check';
+
+  // Cart
+  static String get cartUrl => '$baseUrl/shop/cart';
+  static String get cartSummaryUrl => '$baseUrl/shop/cart/summary';
+  static String cartItemUrl(int productId) => '$baseUrl/shop/cart/$productId';
+
+  // Checkout + orders
+  static String get checkoutUrl => '$baseUrl/shop/checkout';
+  static String get myOrdersUrl => '$baseUrl/shop/orders/mine';
+  static String orderUrl(int orderId) => '$baseUrl/shop/orders/$orderId';
+
+  // AI Fan Helper
+  static String get aiChatUrl => '$baseUrl/ai/chat';
+  static String get aiSuggestionsUrl => '$baseUrl/ai/suggestions';
+  static String get aiTopicsUrl => '$baseUrl/ai/topics';
+  static String get aiHistoryUrl => '$baseUrl/ai/history';
 }
