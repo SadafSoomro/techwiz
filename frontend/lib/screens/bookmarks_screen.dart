@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../models/community_models.dart';
 import '../providers/community_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_alert.dart';
 import '../widgets/community_chips.dart';
 import '../widgets/community_post_card.dart';
 import '../widgets/community_scaffold.dart';
@@ -34,6 +35,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
   }
 
   Future<void> _clearAll() async {
+    final provider = context.read<CommunityProvider>();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -66,17 +68,14 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
 
     if (confirm != true) return;
 
-    final result = await context.read<CommunityProvider>().clearBookmarks();
+    final result = await provider.clearBookmarks();
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor:
-            result.success ? AppTheme.successColor : AppTheme.errorColor,
-        content: Text(result.message,
-            style: GoogleFonts.inter(color: Colors.white)),
-      ),
-    );
+    if (result.success) {
+      await showSuccessAlert(context, result.message, title: 'Bookmarks Cleared');
+    } else {
+      await showErrorAlert(context, result.message, title: 'Could Not Clear');
+    }
   }
 
   @override

@@ -96,8 +96,8 @@ class EventService {
         'to': to,
         if (freeOnly) 'free': 1,
         if (featuredOnly) 'featured': 1,
-        if (latitude != null) 'lat': latitude,
-        if (longitude != null) 'lng': longitude,
+        'lat': ?latitude,
+        'lng': ?longitude,
         'limit': limit,
       });
 

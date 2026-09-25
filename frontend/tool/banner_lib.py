@@ -334,3 +334,236 @@ def build_banner(size, title, c1, c2, c3, style="geometric"):
     base = draw_watermark(base, WATERMARK_TEXT, small_font)
 
     return base.convert("RGB")
+
+
+# ===========================================================================
+# MEMBER 1 & 2 - content artwork (news thumbnails, gallery plates, video
+# stills, podcast covers and avatar presets)
+#
+# These are smaller than the 1200x600 banners above, so the typography is
+# scaled from the image size instead of being hard coded.
+# ===========================================================================
+
+
+def draw_letterbox(size, bar_ratio=0.075, color=(4, 8, 14), alpha=210):
+    """Cinema style top / bottom bars - used for video stills."""
+    w, h = size
+    bar = max(10, int(h * bar_ratio))
+    overlay = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+    draw.rectangle((0, 0, w, bar), fill=color + (alpha,))
+    draw.rectangle((0, h - bar, w, h), fill=color + (alpha,))
+    return overlay
+
+
+def draw_waves(size, color=(255, 255, 255), alpha=44, count=9, height=0.16):
+    """Stacked arcs - used for podcast covers."""
+    w, h = size
+    overlay = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    step = h // (count + 2)
+    for index in range(count):
+        y = int(h * 0.62) + index * int(step * 0.55)
+        amplitude = int(h * height * (1 - index / (count + 2)))
+        box = (-int(w * 0.25), y - amplitude, int(w * 1.25), y + amplitude)
+        draw.arc(box, start=200, end=340, fill=color + (max(8, alpha - index * 4),), width=3)
+
+    return overlay
+
+
+def draw_frames(size, color=(255, 255, 255), alpha=40, count=4, inset=44, gap=34):
+    """Concentric rounded frames - used for gallery plates."""
+    w, h = size
+    overlay = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    for index in range(count):
+        offset = inset + index * gap
+        if offset * 2 >= min(w, h):
+            break
+        draw.rounded_rectangle(
+            (offset, offset, w - offset, h - offset),
+            radius=max(10, 34 - index * 6),
+            outline=color + (max(10, alpha - index * 8),),
+            width=2,
+        )
+
+    return overlay
+
+
+def draw_play_mark(image, size, radius_ratio=0.13, color=(255, 255, 255), alpha=210):
+    """A soft play triangle so video thumbnails read instantly as video."""
+    w, h = size
+    overlay = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    cx, cy = w / 2, h / 2
+    r = min(w, h) * radius_ratio
+
+    draw.ellipse(
+        (cx - r, cy - r, cx + r, cy + r),
+        fill=(10, 14, 22, 90),
+        outline=color + (alpha,),
+        width=3,
+    )
+
+    tri = r * 0.42
+    draw.polygon(
+        [
+            (cx - tri * 0.6, cy - tri),
+            (cx - tri * 0.6, cy + tri),
+            (cx + tri * 0.95, cy),
+        ],
+        fill=color + (alpha,),
+    )
+
+    return Image.alpha_composite(image, overlay)
+
+
+def draw_burst(size, color=(255, 255, 255), alpha=52, count=44, inner_ratio=0.12):
+    """Radial burst used behind avatar presets."""
+    w, h = size
+    overlay = Image.new("RGBA", size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    cx, cy = w / 2, h / 2
+    inner = min(w, h) * inner_ratio
+    length = math.hypot(w, h) / 2
+
+    for index in range(count):
+        angle = (2 * math.pi / count) * index
+        width = 5 if index % 2 == 0 else 2
+        draw.line(
+            (
+                cx + math.cos(angle) * inner,
+                cy + math.sin(angle) * inner,
+                cx + math.cos(angle) * length,
+                cy + math.sin(angle) * length,
+            ),
+            fill=color + (alpha if index % 2 == 0 else alpha // 2,),
+            width=width,
+        )
+
+    return overlay
+
+
+def draw_index_chip(image, text, font, margin_ratio=0.055):
+    """Small "01 / 09" style chip in the top-left corner of a gallery plate."""
+    w, h = image.size
+    margin = int(min(w, h) * margin_ratio)
+
+    layer = Image.new("RGBA", image.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+
+    bbox = draw.textbbox((0, 0), text, font=font)
+    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    pad_x, pad_y = int(margin * 0.6), int(margin * 0.32)
+
+    draw.rounded_rectangle(
+        (margin, margin, margin + tw + pad_x * 2, margin + th + pad_y * 2 + 4),
+        radius=int((th + pad_y * 2) / 2),
+        fill=(10, 14, 22, 150),
+        outline=(255, 255, 255, 70),
+        width=2,
+    )
+    draw.text((margin + pad_x - bbox[0], margin + pad_y - bbox[1] + 2), text, font=font, fill=(255, 255, 255, 235))
+
+    return Image.alpha_composite(image, layer)
+
+
+def _tile_overlay(size, style):
+    """Pattern layer for one tile style."""
+    if style == "grid":
+        overlay = draw_dot_grid(size, alpha=26, spacing=max(28, min(size) // 16))
+        overlay = Image.alpha_composite(overlay, draw_stripes(size, alpha=20, spacing=max(46, min(size) // 10)))
+        overlay = Image.alpha_composite(
+            overlay, draw_speed_lines(size, origin=(0.84, 0.24), alpha=34, count=22, inner=min(size) * 0.16)
+        )
+        overlay = Image.alpha_composite(
+            overlay, draw_sparkles(size, [(0.2, 0.24, min(size) * 0.022), (0.74, 0.72, min(size) * 0.016)], alpha=70)
+        )
+        return overlay
+
+    if style == "frame":
+        overlay = draw_frames(size)
+        overlay = Image.alpha_composite(overlay, draw_halftone(size, origin=(0.5, 0.5), alpha=30, rings=22, spacing=max(22, min(size) // 22)))
+        overlay = Image.alpha_composite(
+            overlay, draw_sparkles(size, [(0.24, 0.3, min(size) * 0.02), (0.8, 0.68, min(size) * 0.014)], alpha=60)
+        )
+        return overlay
+
+    if style == "cinema":
+        overlay = draw_letterbox(size)
+        overlay = Image.alpha_composite(
+            overlay, draw_speed_lines(size, origin=(0.5, 0.5), alpha=26, count=30, inner=min(size) * 0.28)
+        )
+        overlay = Image.alpha_composite(overlay, draw_dot_grid(size, alpha=16, spacing=max(26, min(size) // 18)))
+        return overlay
+
+    if style == "wave":
+        overlay = draw_waves(size)
+        overlay = Image.alpha_composite(overlay, draw_rings(size, center=(size[0] * 0.5, size[1] * 0.42), radii=(60, 110, 170), width=2))
+        overlay = Image.alpha_composite(overlay, draw_dot_grid(size, alpha=16, spacing=max(24, min(size) // 20)))
+        return overlay
+
+    if style == "avatar":
+        overlay = draw_burst(size)
+        overlay = Image.alpha_composite(overlay, draw_rings(size, center=(size[0] * 0.5, size[1] * 0.5), radii=(int(min(size) * 0.3), int(min(size) * 0.42), int(min(size) * 0.54)), width=2))
+        return overlay
+
+    return draw_dot_grid(size)
+
+
+def build_tile(size, c1, c2, c3, style="grid", label=None, index=None, initial=None, play=False):
+    """Builds one content tile (news / gallery / video / podcast / avatar).
+
+    Compared to `build_banner`, the artwork is clean: gallery plates and
+    avatars carry no label, video stills get a play mark, and labels (when
+    used) are scaled to the tile size.
+    """
+    base = diagonal_gradient(size, c1, c2, c3)
+    base = radial_glow(base, size, (size[0] * 0.3, size[1] * 0.24), max(size) * 0.8, 120)
+    base = apply_scrim(base, size, max_alpha=170 if label else 110).convert("RGBA")
+
+    overlay = _tile_overlay(size, style)
+    base = Image.alpha_composite(base, overlay.filter(ImageFilter.GaussianBlur(0.4)))
+
+    if play:
+        base = draw_play_mark(base, size)
+
+    if initial:
+        font = load_font(FONT_CANDIDATES_BOLD, int(min(size) * 0.46))
+        layer = Image.new("RGBA", size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(layer)
+        bbox = draw.textbbox((0, 0), initial, font=font)
+        draw.text(
+            (
+                (size[0] - (bbox[2] - bbox[0])) / 2 - bbox[0],
+                (size[1] - (bbox[3] - bbox[1])) / 2 - bbox[1],
+            ),
+            initial,
+            font=font,
+            fill=(255, 255, 255, 205),
+        )
+        base = Image.alpha_composite(base, layer)
+
+    label_font = load_font(FONT_CANDIDATES_BOLD, max(18, int(min(size) * 0.072)))
+    small_font = load_font(FONT_CANDIDATES_REGULAR, max(11, int(min(size) * 0.033)))
+
+    if label:
+        margin = int(min(size) * 0.075)
+        base = draw_label_pill(
+            base,
+            label,
+            label_font,
+            origin=(margin, margin),
+            pad=(max(12, int(margin * 0.5)), max(8, int(margin * 0.3))),
+        )
+
+    if index:
+        base = draw_index_chip(base, index, small_font)
+
+    base = draw_watermark(base, WATERMARK_TEXT, small_font, margin=int(min(size) * 0.075))
+
+    return base.convert("RGB")

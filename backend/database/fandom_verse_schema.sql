@@ -323,5 +323,234 @@ CREATE TABLE IF NOT EXISTS event_reminders (
 );
 
 -- ============================================================================
+--  MEMBER 1 - PROFILE, FANDOM SELECTION & HOME
+--  (Frontend: Splash, Login, Sign Up, Fandom Selection, Profile, Edit Profile,
+--   Invite, Social & Tasks, Public Badges, Settings, Home Dashboard
+--   Backend : Users + Fandoms + SQLite user cache)
+--  SRS: User Registration and Profile Management
+-- ============================================================================
+
+-- ---------------------------------------------------------------------------
+-- 18. EXTRA PROFILE COLUMNS ON users  (invite / points / visibility)
+--     member_since is derived from users.created_at (added in section 1).
+-- ---------------------------------------------------------------------------
+-- ALTER TABLE users ADD COLUMN invite_code   TEXT;
+-- ALTER TABLE users ADD COLUMN referred_by   INTEGER;
+-- ALTER TABLE users ADD COLUMN invite_count  INTEGER DEFAULT 0;
+-- ALTER TABLE users ADD COLUMN points        INTEGER DEFAULT 0;
+-- ALTER TABLE users ADD COLUMN streak_count  INTEGER DEFAULT 0;
+-- ALTER TABLE users ADD COLUMN avatar_frame  TEXT DEFAULT 'gradient';
+-- ALTER TABLE users ADD COLUMN is_public     INTEGER DEFAULT 1;
+-- ALTER TABLE users ADD COLUMN last_active_at TEXT;
+-- (the server applies these idempotently in profileSchema.js)
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_invite_code ON users (invite_code);
+
+-- ---------------------------------------------------------------------------
+-- 19. PROFILE BADGES  (Public Badges screen)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS profile_badges (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    code        TEXT NOT NULL UNIQUE,
+    name        TEXT NOT NULL,
+    description TEXT,
+    icon        TEXT,
+    color       TEXT,
+    category    TEXT DEFAULT 'Milestone',
+    threshold   INTEGER DEFAULT 0,
+    sort_order  INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS user_badges (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL,
+    badge_id   INTEGER NOT NULL,
+    awarded_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (user_id, badge_id),
+    FOREIGN KEY (user_id)  REFERENCES users (id) ON DELETE CASCADE,
+    FOREIGN KEY (badge_id) REFERENCES profile_badges (id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_ubadges_user ON user_badges (user_id);
+
+-- ---------------------------------------------------------------------------
+-- 20. SOCIAL TASKS  ("Invite / Social & Task" screen)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS social_tasks (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    code          TEXT NOT NULL UNIQUE,
+    title         TEXT NOT NULL,
+    description   TEXT,
+    icon          TEXT,
+    color         TEXT,
+    reward_points INTEGER DEFAULT 10,
+    target_count  INTEGER DEFAULT 1,
+    action        TEXT DEFAULT 'in_app',
+    sort_order    INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS user_tasks (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id      INTEGER NOT NULL,
+    task_code    TEXT NOT NULL,
+    progress     INTEGER DEFAULT 0,
+    is_completed INTEGER DEFAULT 0,
+    completed_at TEXT,
+    updated_at   TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (user_id, task_code)
+);
+
+CREATE INDEX IF NOT EXISTS idx_utasks_user ON user_tasks (user_id);
+
+-- ---------------------------------------------------------------------------
+-- 21. USER SETTINGS  (Notifications, Language, Dark Mode)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS user_settings (
+    user_id        INTEGER PRIMARY KEY,
+    language       TEXT DEFAULT 'English',
+    dark_mode      INTEGER DEFAULT 1,
+    push_enabled   INTEGER DEFAULT 1,
+    push_events    INTEGER DEFAULT 1,
+    push_content   INTEGER DEFAULT 1,
+    push_community INTEGER DEFAULT 1,
+    email_updates  INTEGER DEFAULT 0,
+    autoplay_video INTEGER DEFAULT 1,
+    offline_sync   INTEGER DEFAULT 1,
+    updated_at     TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ---------------------------------------------------------------------------
+-- 22. PROFILE CACHE  (the "SQLite user cache" - instant / offline profile)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS profile_cache (
+    user_id    INTEGER PRIMARY KEY,
+    payload    TEXT NOT NULL,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
+--  MEMBER 2 - FANDOM CONTENT
+--  (Frontend: Fandom Hub, Explore Fandoms, News, Gallery, Video Player,
+--   Podcasts, Discover, Glossary
+--   Backend : Posts / Media + SQLite recent & offline content)
+--  SRS: Fandom Exploration and Multimedia Hub
+-- ============================================================================
+
+-- ---------------------------------------------------------------------------
+-- 23. FANDOM HUBS  (Explore Fandoms / trending carousel)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS fandom_hubs (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug            TEXT NOT NULL UNIQUE,
+    name            TEXT NOT NULL,
+    tagline         TEXT,
+    description     TEXT,
+    image_url       TEXT,
+    icon            TEXT,
+    color           TEXT,
+    followers_count INTEGER DEFAULT 0,
+    posts_count     INTEGER DEFAULT 0,
+    is_trending     INTEGER DEFAULT 0,
+    sort_order      INTEGER DEFAULT 0,
+    created_at      TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ---------------------------------------------------------------------------
+-- 24. CONTENT ITEMS
+--     content_type : 'news' | 'article' | 'gallery' | 'video' | 'podcast'
+--                    | 'deep_dive'
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS content_items (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    fandom           TEXT NOT NULL DEFAULT 'Anime',
+    hub_slug         TEXT,
+    content_type     TEXT NOT NULL DEFAULT 'news',
+    title            TEXT NOT NULL,
+    subtitle         TEXT,
+    summary          TEXT,
+    body             TEXT,
+    image_url        TEXT,
+    media_url        TEXT,
+    duration_seconds INTEGER DEFAULT 0,
+    author           TEXT,
+    source           TEXT,
+    tags             TEXT,
+    episode_number   INTEGER,
+    season           INTEGER,
+    views_count      INTEGER DEFAULT 0,
+    likes_count      INTEGER DEFAULT 0,
+    comments_count   INTEGER DEFAULT 0,
+    is_featured      INTEGER DEFAULT 0,
+    is_published     INTEGER DEFAULT 1,
+    published_at     TEXT DEFAULT CURRENT_TIMESTAMP,
+    created_at       TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at       TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_content_type      ON content_items (content_type);
+CREATE INDEX IF NOT EXISTS idx_content_fandom    ON content_items (fandom);
+CREATE INDEX IF NOT EXISTS idx_content_hub       ON content_items (hub_slug);
+CREATE INDEX IF NOT EXISTS idx_content_published ON content_items (published_at);
+
+-- ---------------------------------------------------------------------------
+-- 25. CONTENT MEDIA  (gallery images / media of one content item)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS content_media (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    content_id INTEGER NOT NULL,
+    media_type TEXT NOT NULL DEFAULT 'image',
+    url        TEXT NOT NULL,
+    caption    TEXT,
+    sort_order INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (content_id) REFERENCES content_items (id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_media_content ON content_media (content_id);
+
+-- ---------------------------------------------------------------------------
+-- 26. CONTENT LIKES
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS content_likes (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    content_id INTEGER NOT NULL,
+    user_id    INTEGER NOT NULL,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (content_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_clikes_content ON content_likes (content_id);
+
+-- ---------------------------------------------------------------------------
+-- 27. CONTENT VIEWS  (recent history + offline cache in one table)
+--     is_offline = 1  ->  saved for offline reading / viewing
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS content_views (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id    INTEGER NOT NULL,
+    content_id INTEGER NOT NULL,
+    is_offline INTEGER DEFAULT 0,
+    progress   REAL DEFAULT 0,
+    viewed_at  TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (user_id, content_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_cviews_user    ON content_views (user_id);
+CREATE INDEX IF NOT EXISTS idx_cviews_offline ON content_views (user_id, is_offline);
+
+-- ---------------------------------------------------------------------------
+-- 28. BEGINNER FAN GLOSSARY  (fandom terminology)
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS glossary_terms (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    term       TEXT NOT NULL,
+    definition TEXT NOT NULL,
+    fandom     TEXT DEFAULT 'General',
+    category   TEXT DEFAULT 'General',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (term, fandom)
+);
+
+-- ============================================================================
 --  End of script
 -- ============================================================================

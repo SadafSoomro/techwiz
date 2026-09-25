@@ -57,7 +57,7 @@ class EventBannerImage extends StatelessWidget {
         height: height,
         width: double.infinity,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _fallback(),
+        errorBuilder: (_, _, _) => _fallback(),
       );
     } else if (_isRemote) {
       content = Image.network(
@@ -67,7 +67,7 @@ class EventBannerImage extends StatelessWidget {
         fit: BoxFit.cover,
         loadingBuilder: (context, child, progress) =>
             progress == null ? child : _fallback(),
-        errorBuilder: (_, __, ___) => _fallback(),
+        errorBuilder: (_, _, _) => _fallback(),
       );
     } else {
       content = _fallback();
@@ -97,7 +97,7 @@ class EventBannerImage extends StatelessWidget {
                   ),
                 ),
               ),
-            if (overlay != null) overlay!,
+            ?overlay,
           ],
         ),
       ),

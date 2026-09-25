@@ -7,6 +7,7 @@ import '../providers/community_provider.dart';
 import '../services/community_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/community_banner_image.dart';
+import '../widgets/app_alert.dart';
 import '../widgets/community_chips.dart';
 import '../widgets/community_scaffold.dart';
 import 'user_profile_screen.dart';
@@ -105,16 +106,7 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
     final result = await context.read<CommunityProvider>().toggleBookmark(post);
     if (result.success && result.data != null && mounted) {
       setState(() => _post = post.copyWith(isBookmarked: result.data![0] == 1));
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 1),
-          backgroundColor: AppTheme.cardColorLight,
-          content: Text(
-            result.message,
-            style: GoogleFonts.inter(color: Colors.white),
-          ),
-        ),
-      );
+      await showInfoAlert(context, result.message, title: 'Community');
     }
   }
 
@@ -141,19 +133,12 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
       });
       FocusScope.of(context).unfocus();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppTheme.errorColor,
-          content: Text(
-            result.message,
-            style: GoogleFonts.inter(color: Colors.white),
-          ),
-        ),
-      );
+      await showErrorAlert(context, result.message, title: 'Comment Failed');
     }
   }
 
   Future<void> _deletePost() async {
+    final provider = context.read<CommunityProvider>();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -186,19 +171,13 @@ class _PostDetailsScreenState extends State<PostDetailsScreen> {
 
     if (confirm != true) return;
 
-    final result = await context.read<CommunityProvider>().deletePost(widget.postId);
+    final result = await provider.deletePost(widget.postId);
     if (!mounted) return;
 
     if (result.success) {
       Navigator.of(context).pop(true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppTheme.errorColor,
-          content: Text(result.message,
-              style: GoogleFonts.inter(color: Colors.white)),
-        ),
-      );
+      await showErrorAlert(context, result.message, title: 'Could Not Delete');
     }
   }
 

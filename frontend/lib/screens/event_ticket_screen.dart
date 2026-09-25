@@ -7,6 +7,7 @@ import '../models/event_models.dart';
 import '../providers/event_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/event_theme.dart';
+import '../widgets/app_alert.dart';
 import '../widgets/event_scaffold.dart';
 import '../widgets/event_widgets.dart';
 import 'event_details_screen.dart';
@@ -40,6 +41,7 @@ class _EventTicketScreenState extends State<EventTicketScreen> {
   }
 
   Future<void> _cancel(EventTicket ticket) async {
+    final provider = context.read<EventProvider>();
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -82,17 +84,14 @@ class _EventTicketScreenState extends State<EventTicketScreen> {
 
     if (confirm != true) return;
 
-    final result = await context.read<EventProvider>().cancelTicket(ticket.id);
+    final result = await provider.cancelTicket(ticket.id);
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor:
-            result.success ? EventTheme.surfaceLight : AppTheme.errorColor,
-        content: Text(result.message,
-            style: GoogleFonts.inter(color: Colors.white)),
-      ),
-    );
+    if (result.success) {
+      await showSuccessAlert(context, result.message, title: 'Ticket Cancelled');
+    } else {
+      await showErrorAlert(context, result.message, title: 'Could Not Cancel');
+    }
 
     if (result.success && mounted) {
       if (widget.ticket != null) {

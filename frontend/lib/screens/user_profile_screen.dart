@@ -5,6 +5,7 @@ import '../models/community_models.dart';
 import '../providers/community_provider.dart';
 import '../services/community_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_alert.dart';
 import '../widgets/community_chips.dart';
 import '../widgets/community_post_card.dart';
 import '../widgets/community_scaffold.dart';
@@ -94,24 +95,9 @@ class _UserProfileScreenState extends State<UserProfileScreen> {
           followersCount: result.data![1],
         );
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 1),
-          backgroundColor: AppTheme.cardColorLight,
-          content: Text(
-            result.message,
-            style: GoogleFonts.inter(color: Colors.white),
-          ),
-        ),
-      );
+      await showInfoAlert(context, result.message, title: 'Community');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppTheme.errorColor,
-          content: Text(result.message,
-              style: GoogleFonts.inter(color: Colors.white)),
-        ),
-      );
+      await showErrorAlert(context, result.message, title: 'Could Not Update');
     }
   }
 

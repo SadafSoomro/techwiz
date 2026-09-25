@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/community_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_alert.dart';
 import '../widgets/community_chips.dart';
 import '../widgets/community_scaffold.dart';
 
@@ -74,26 +75,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     if (!mounted) return;
 
     if (result.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppTheme.successColor,
-          content: Text(
-            result.message,
-            style: GoogleFonts.inter(color: Colors.white),
-          ),
-        ),
-      );
+      await showSuccessAlert(context, result.message, title: 'Published');
+      if (!mounted) return;
       Navigator.of(context).pop(true);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppTheme.errorColor,
-          content: Text(
-            result.message,
-            style: GoogleFonts.inter(color: Colors.white),
-          ),
-        ),
-      );
+      await showErrorAlert(context, result.message, title: 'Could Not Publish');
     }
   }
 

@@ -7,6 +7,7 @@ import '../providers/event_provider.dart';
 import '../services/event_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/event_theme.dart';
+import '../widgets/app_alert.dart';
 import '../widgets/event_banner_image.dart';
 import '../widgets/event_scaffold.dart';
 import '../widgets/event_widgets.dart';
@@ -91,12 +92,14 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
     final event = _event;
     if (event == null) return;
 
+    final provider = context.read<EventProvider>();
+
     final quantity = await _askQuantity(event);
     if (quantity == null) return;
 
     setState(() => _booking = true);
 
-    final result = await context.read<EventProvider>().bookTicket(
+    final result = await provider.bookTicket(
           eventId: event.id,
           quantity: quantity,
         );
@@ -243,12 +246,12 @@ class _EventDetailsScreenState extends State<EventDetailsScreen> {
   }
 
   void _snack(String message, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: error ? AppTheme.errorColor : EventTheme.surfaceLight,
-        content: Text(message, style: GoogleFonts.inter(color: Colors.white)),
-      ),
-    );
+    if (error) {
+      showErrorAlert(context, message, title: 'Events');
+    } else {
+      showInfoAlert(context, message,
+          title: 'Events', accent: EventTheme.primary);
+    }
   }
 
   @override

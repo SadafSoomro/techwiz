@@ -106,7 +106,7 @@ class EventSectionTitle extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-        if (trailing != null) trailing!,
+        ?trailing,
       ],
     );
   }

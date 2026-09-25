@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/animated_widgets.dart';
+import '../widgets/app_alert.dart';
 import '../widgets/fandom_logo.dart';
 import '../widgets/social_buttons.dart';
 import 'fandom_selection_screen.dart';
@@ -44,13 +46,12 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!mounted) return;
 
     if (response.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response.message),
-          backgroundColor: AppTheme.successColor,
-          behavior: SnackBarBehavior.floating,
-        ),
+      await showSuccessAlert(
+        context,
+        response.message,
+        title: 'Account Created',
       );
+      if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -60,13 +61,7 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response.message),
-          backgroundColor: AppTheme.errorColor,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      await showErrorAlert(context, response.message, title: 'Sign Up Failed');
     }
   }
 
@@ -77,13 +72,12 @@ class _SignupScreenState extends State<SignupScreen> {
     if (!mounted) return;
 
     if (response.success && authProvider.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response.message),
-          backgroundColor: AppTheme.successColor,
-          behavior: SnackBarBehavior.floating,
-        ),
+      await showSuccessAlert(
+        context,
+        response.message,
+        title: 'Account Created',
       );
+      if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const FandomSelectionScreen()),
@@ -96,12 +90,10 @@ class _SignupScreenState extends State<SignupScreen> {
           response.message.toLowerCase().contains('console')) {
         _showGoogleEmailFallbackDialog();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response.message),
-            backgroundColor: AppTheme.errorColor,
-            behavior: SnackBarBehavior.floating,
-          ),
+        await showErrorAlert(
+          context,
+          response.message,
+          title: 'Google Sign Up Failed',
         );
       }
     }
@@ -111,7 +103,7 @@ class _SignupScreenState extends State<SignupScreen> {
     final googleEmailController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
@@ -144,7 +136,7 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
           ),
           ElevatedButton(
@@ -152,33 +144,31 @@ class _SignupScreenState extends State<SignupScreen> {
               final email = googleEmailController.text.trim();
               if (email.isEmpty || !email.contains('@')) return;
 
-              final messenger = ScaffoldMessenger.of(context);
-              final navigator = Navigator.of(context);
+              Navigator.of(dialogContext).pop();
 
-              navigator.pop();
-              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+              final authProvider =
+                  Provider.of<AuthProvider>(context, listen: false);
               final res = await authProvider.loginWithGoogleEmail(email: email);
 
               if (!mounted) return;
 
               if (res.success && authProvider.isAuthenticated) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(res.message),
-                    backgroundColor: AppTheme.successColor,
-                    behavior: SnackBarBehavior.floating,
-                  ),
+                await showSuccessAlert(
+                  context,
+                  res.message,
+                  title: 'Account Created',
                 );
-                navigator.pushReplacement(
+                if (!mounted) return;
+
+                Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (_) => const FandomSelectionScreen()),
                 );
               } else {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(res.message),
-                    backgroundColor: AppTheme.errorColor,
-                    behavior: SnackBarBehavior.floating,
-                  ),
+                if (!mounted) return;
+                await showErrorAlert(
+                  context,
+                  res.message,
+                  title: 'Google Sign Up Failed',
                 );
               }
             },
@@ -210,29 +200,38 @@ class _SignupScreenState extends State<SignupScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Official FANDOM VERSE Logo
-                  const Center(
-                    child: FandomLogoWidget(height: 120),
+                  // Official FANDOM VERSE Logo (animated in)
+                  FadeSlideIn(
+                    child: const Center(
+                      child: FandomLogoWidget(height: 120),
+                    ),
                   ),
                   const SizedBox(height: 16),
 
                   // Header Title & Subtitle
-                  Text(
-                    'Create Your Account',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Join the fandom community',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: AppTheme.textSecondary,
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 90),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Create Your Account',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.outfit(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Join the fandom community',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 28),

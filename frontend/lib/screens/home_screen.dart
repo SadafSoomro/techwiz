@@ -1,26 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import '../models/event_models.dart';
-import '../providers/auth_provider.dart';
+
+import '../models/content_models.dart';
+import '../models/profile_models.dart';
 import '../providers/community_provider.dart';
+import '../providers/content_provider.dart';
 import '../providers/event_provider.dart';
+import '../providers/profile_provider.dart';
 import '../theme/app_theme.dart';
+import '../theme/content_theme.dart';
 import '../theme/event_theme.dart';
+import '../theme/profile_theme.dart';
+import '../widgets/animated_widgets.dart';
+import '../widgets/app_image.dart';
+import '../widgets/content_widgets.dart';
 import '../widgets/fandom_logo.dart';
+import '../widgets/profile_widgets.dart';
 import 'bookmarks_screen.dart';
 import 'discussions_screen.dart';
+import 'discover_screen.dart';
 import 'event_calendar_screen.dart';
 import 'event_categories_screen.dart';
-import 'event_details_screen.dart';
 import 'event_map_screen.dart';
 import 'events_screen.dart';
-import 'login_screen.dart';
+import 'fandom_hub_screen.dart';
+import 'gallery_screen.dart';
+import 'invite_friends_screen.dart';
+import 'my_fandoms_screen.dart';
 import 'notifications_screen.dart';
+import 'news_details_screen.dart';
+import 'news_list_screen.dart';
+import 'podcasts_screen.dart';
+import 'profile_badges_screen.dart';
+import 'profile_screen.dart';
+import 'recent_content_screen.dart';
 import 'saved_events_screen.dart';
 import 'search_screen.dart';
+import 'social_tasks_screen.dart';
 import 'trending_screen.dart';
+import 'video_player_screen.dart';
 
+/// FANDOM VERSE - application shell.
+///
+/// Tab 0  Home Dashboard   -> MEMBER 1 (Profile, Fandom Selection & Home)
+/// Tab 1  Explore          -> MEMBER 2 (Fandom Content)
+/// Tab 2  Events           -> MEMBER 4 (Events & Maps)
+/// Tab 3  Shop             -> MEMBER 5 (Merchandise, placeholder)
+/// Tab 4  Saved            -> MEMBER 3 (Search & Community bookmarks)
+/// Tab 5  Profile          -> MEMBER 1 (Profile & account)
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -34,513 +62,1065 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // MEMBER 3 - Search & Community: warm up the community data.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+
+      // MEMBER 1 - Profile & Home dashboard aggregate.
+      context.read<ProfileProvider>().loadDashboard();
+
+      // MEMBER 2 - Fandom content (Discover rail).
+      context.read<ContentProvider>().loadDiscover();
+
+      // MEMBER 3 - Search & Community.
       final community = context.read<CommunityProvider>();
       community.refreshUnreadCount();
       community.loadOverview();
 
-      // MEMBER 4 - Events & Maps: warm up the events data.
+      // MEMBER 4 - Events & Maps.
       final events = context.read<EventProvider>();
       events.loadOverview();
       events.loadEvents();
     });
   }
 
-  Future<void> _handleLogout() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppTheme.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Logout Confirmation', style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to log out of FANDOM VERSE?', style: GoogleFonts.inter(color: AppTheme.textSecondary)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel', style: GoogleFonts.inter(color: AppTheme.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorColor,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text('Logout', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true && mounted) {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      await authProvider.logout();
-
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-        (route) => false,
-      );
-    }
+  void _openTab(int index) {
+    if (_currentIndex == index) return;
+    setState(() => _currentIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.user;
-    final userName = user?['name'] ?? 'Emma';
-    final userEmail = user?['email'] ?? 'user@fandomverse.com';
-
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
-        ),
+        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
         child: SafeArea(
           child: IndexedStack(
             index: _currentIndex,
             children: [
-              // Tab 0: Home Dashboard (Screen 5)
-              _buildHomeDashboard(userName),
-              
-              // Tab 1: Events Section  (MEMBER 4 - Events & Maps)
+              _HomeDashboardTab(onOpenTab: _openTab),
+              const DiscoverScreen(embedded: true),
               const EventsScreen(embedded: true),
-              
-              // Tab 2: Shop / Merch Section
-              _buildPlaceholderTab('Shop & Merchandise', Icons.shopping_bag_rounded),
-              
-              // Tab 3: Bookmarks  (MEMBER 3 - Search & Community)
+              _PlaceholderTab(
+                title: 'Shop & Merchandise',
+                message: 'The official merchandise store is on its way.',
+                icon: Icons.shopping_bag_rounded,
+                color: const Color(0xFFEC4899),
+              ),
               const BookmarksScreen(embedded: true),
-              
-              // Tab 4: Profile & Account Settings (Screen 18)
-              _buildProfileTab(userName, userEmail, authProvider),
+              const ProfileScreen(embedded: true),
             ],
           ),
         ),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08))),
+      bottomNavigationBar: _FandomNavBar(
+        currentIndex: _currentIndex,
+        onSelect: _openTab,
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// animated bottom navigation
+// ---------------------------------------------------------------------------
+class _FandomNavBar extends StatelessWidget {
+  const _FandomNavBar({required this.currentIndex, required this.onSelect});
+
+  final int currentIndex;
+  final ValueChanged<int> onSelect;
+
+  static const List<({IconData icon, String label})> _items = [
+    (icon: Icons.home_rounded, label: 'Home'),
+    (icon: Icons.explore_rounded, label: 'Explore'),
+    (icon: Icons.event_rounded, label: 'Events'),
+    (icon: Icons.shopping_bag_rounded, label: 'Shop'),
+    (icon: Icons.bookmark_rounded, label: 'Saved'),
+    (icon: Icons.person_rounded, label: 'Profile'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        border: Border(
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.07)),
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          backgroundColor: AppTheme.cardColor,
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: AppTheme.secondaryColor,
-          unselectedItemColor: AppTheme.textMuted,
-          selectedLabelStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: GoogleFonts.inter(fontSize: 11),
-          items: const [
-            BottomNavigationBarItem(icon: Icon(Icons.home_rounded), label: 'Home'),
-            BottomNavigationBarItem(icon: Icon(Icons.event_rounded), label: 'Events'),
-            BottomNavigationBarItem(icon: Icon(Icons.shopping_bag_outlined), label: 'Shop'),
-            BottomNavigationBarItem(icon: Icon(Icons.bookmark_outline_rounded), label: 'Bookmarks'),
-            BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 62,
+          child: Row(
+            children: List.generate(_items.length, (index) {
+              final item = _items[index];
+              final selected = index == currentIndex;
+
+              return Expanded(
+                child: PressScale(
+                  pressedScale: 0.9,
+                  onTap: () => onSelect(index),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 5),
+                        decoration: BoxDecoration(
+                          gradient: selected
+                              ? ProfileTheme.buttonGradient
+                              : null,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: selected
+                              ? [
+                                  BoxShadow(
+                                    color: ProfileTheme.primary
+                                        .withValues(alpha: 0.4),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Icon(
+                          item.icon,
+                          size: 19,
+                          color: selected ? Colors.white : AppTheme.textMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.label,
+                        style: GoogleFonts.inter(
+                          fontSize: 9.5,
+                          fontWeight:
+                              selected ? FontWeight.w700 : FontWeight.w500,
+                          color: selected
+                              ? Colors.white
+                              : AppTheme.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// MEMBER 5 placeholder (kept so the tab bar stays complete)
+// ---------------------------------------------------------------------------
+class _PlaceholderTab extends StatelessWidget {
+  const _PlaceholderTab({
+    required this.title,
+    required this.message,
+    required this.icon,
+    required this.color,
+  });
+
+  final String title;
+  final String message;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: FadeSlideIn(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 38, color: color),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// MEMBER 1 - Home Dashboard
+// ---------------------------------------------------------------------------
+class _HomeDashboardTab extends StatelessWidget {
+  const _HomeDashboardTab({required this.onOpenTab});
+
+  final ValueChanged<int> onOpenTab;
+
+  Future<void> _push(BuildContext context, Widget screen) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+  }
+
+  /// Opens a fandom hub card: prefers the matching hub from the dashboard
+  /// payload, otherwise lands on the Explore Fandoms list.
+  void _openFandom(BuildContext context, String name) {
+    final hubs = context.read<ProfileProvider>().dashboard?.hubs ?? const [];
+    FandomHub? match;
+    for (final hub in hubs) {
+      if (hub.name.toLowerCase() == name.toLowerCase()) {
+        match = hub;
+        break;
+      }
+    }
+    if (match != null) {
+      FandomHubScreen.openHub(context, match);
+    } else {
+      _push(context, const FandomHubScreen());
+    }
+  }
+
+  void _openContent(BuildContext context, ContentItem item) {
+    if (item.contentType == 'video') {
+      _push(context, VideoPlayerScreen(item: item));
+      return;
+    }
+    _push(context, NewsDetailsScreen(item: item));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = context.watch<ProfileProvider>();
+    final content = context.watch<ContentProvider>();
+    final dashboard = profile.dashboard;
+
+    if (dashboard == null) {
+      return RefreshIndicator(
+        color: ProfileTheme.primary,
+        onRefresh: () => profile.loadDashboard(refresh: true),
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
+          children: const [
+            Shimmer(height: 62, borderRadius: BorderRadius.all(Radius.circular(20))),
+            SizedBox(height: 18),
+            Shimmer(height: 150, borderRadius: BorderRadius.all(Radius.circular(22))),
+            SizedBox(height: 18),
+            ShimmerCard(imageHeight: 130),
+            SizedBox(height: 22),
+            ShimmerCard(imageHeight: 130),
+          ],
+        ),
+      );
+    }
+
+    final user = dashboard.user;
+
+    return RefreshIndicator(
+      color: ProfileTheme.primary,
+      onRefresh: () async {
+        await profile.loadDashboard(refresh: true);
+        await content.loadDiscover();
+      },
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 30),
+        physics: const BouncingScrollPhysics(),
+        children: [
+          // ------------------------------------------------ app bar
+          FadeSlideIn(child: _buildHeader(context, dashboard)),
+          const SizedBox(height: 18),
+
+          // ------------------------------------------------ greeting
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 60),
+            child: _buildGreetingCard(context, user),
+          ),
+          const SizedBox(height: 16),
+
+          // ------------------------------------------------ search
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 100),
+            child: _buildSearchBar(context),
+          ),
+          const SizedBox(height: 24),
+
+          // ------------------------------------------------ trending fandoms carousel
+          SectionHeader(
+            title: 'Trending Fandoms',
+            subtitle: 'Popular right now',
+            actionLabel: 'See all',
+            accent: ProfileTheme.primary,
+            onAction: () => _push(context, const FandomHubScreen()),
+          ),
+          const SizedBox(height: 12),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 140),
+            child: SizedBox(
+              height: 168,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: dashboard.trending.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 12),
+                itemBuilder: (context, index) {
+                  final fandom = dashboard.trending[index];
+                  return _TrendingFandomCard(
+                    fandom: fandom,
+                    onTap: () => _openFandom(context, fandom.name),
+                  );
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ------------------------------------------------ your fandoms
+          if (dashboard.fandoms.isNotEmpty) ...[
+            SectionHeader(
+              title: 'Your Fandoms',
+              subtitle: '${dashboard.fandoms.length} selected',
+              actionLabel: 'Edit',
+              accent: ProfileTheme.primary,
+              onAction: () => _push(context, const MyFandomsScreen()),
+            ),
+            const SizedBox(height: 12),
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 160),
+              child: SizedBox(
+                height: 40,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: dashboard.fandoms.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 9),
+                  itemBuilder: (context, index) {
+                    final fandom = dashboard.fandoms[index];
+                    final color = fandom.displayColor;
+                    return AnimatedPill(
+                      label: fandom.name,
+                      icon: ProfileTheme.fandomIcon(fandom.name),
+                      color: color,
+                      selected: true,
+                      onTap: () => _openFandom(context, fandom.name),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // ------------------------------------------------ continue
+          if (dashboard.continueWatching.isNotEmpty) ...[
+            SectionHeader(
+              title: 'Continue',
+              subtitle: 'Pick up where you left off',
+              actionLabel: 'Library',
+              accent: ContentTheme.primary,
+              onAction: () => _push(context, const RecentContentScreen()),
+            ),
+            const SizedBox(height: 12),
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 180),
+              child: SizedBox(
+                height: 158,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: dashboard.continueWatching.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final item = dashboard.continueWatching[index];
+                    return _ContinueCard(
+                      item: item,
+                      onTap: () => _openContent(
+                        context,
+                        ContentItem(
+                          id: item.id,
+                          title: item.title,
+                          imageUrl: item.imageUrl,
+                          contentType: item.contentType,
+                          fandom: item.fandom,
+                          durationSeconds: item.durationSeconds,
+                          isOffline: item.isOffline,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // ------------------------------------------------ latest news
+          if (dashboard.latestNews.isNotEmpty) ...[
+            SectionHeader(
+              title: 'Latest Updates',
+              subtitle: 'From your favorite series',
+              actionLabel: 'See all',
+              accent: ContentTheme.primary,
+              onAction: () => _push(
+                context,
+                const NewsListScreen(title: 'Latest Updates'),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...List.generate(
+              dashboard.latestNews.take(2).length,
+              (index) {
+                final item = dashboard.latestNews[index];
+                return FadeSlideIn(
+                  delay: Duration(milliseconds: 200 + index * 60),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: ContentCard(
+                      item: item,
+                      imageHeight: 140,
+                      showSummary: true,
+                      onTap: () => _openContent(context, item),
+                    ),
+                  ),
+                );
+              },
+            ),
+            // compact list for the remaining stories
+            ...List.generate(
+              dashboard.latestNews.skip(2).length,
+              (index) {
+                final item = dashboard.latestNews.skip(2).elementAt(index);
+                return FadeSlideIn(
+                  delay: Duration(milliseconds: 260 + index * 50),
+                  child: ContentRowTile(
+                    item: item,
+                    onTap: () => _openContent(context, item),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // ------------------------------------------------ fandom hub quick rail
+          if (dashboard.hubs.isNotEmpty) ...[
+            SectionHeader(
+              title: 'Fandom Hub',
+              subtitle: 'Explore every universe',
+              actionLabel: 'See all',
+              accent: ContentTheme.primary,
+              onAction: () => _push(context, const FandomHubScreen()),
+            ),
+            const SizedBox(height: 12),
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 220),
+              child: SizedBox(
+                height: 158,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: dashboard.hubs.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final hub = dashboard.hubs[index];
+                    return FandomHubCard(
+                      hub: hub,
+                      width: 224,
+                      height: 158,
+                      onTap: () => FandomHubScreen.openHub(context, hub),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // ------------------------------------------------ for you
+          if (dashboard.forYou.isNotEmpty) ...[
+            SectionHeader(
+              title: 'For You',
+              subtitle: 'Based on your fandoms',
+              actionLabel: 'Discover',
+              accent: ContentTheme.primary,
+              onAction: () => onOpenTab(1),
+            ),
+            const SizedBox(height: 12),
+            FadeSlideIn(
+              delay: const Duration(milliseconds: 240),
+              child: SizedBox(
+                height: 214,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: dashboard.forYou.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final item = dashboard.forYou[index];
+                    return VideoStillCard(
+                      item: item,
+                      width: 240,
+                      onTap: () => _openContent(context, item),
+                    );
+                  },
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
+          // ------------------------------------------------ media shortcuts (MEMBER 2)
+          SectionHeader(
+            title: 'Explore Content',
+            subtitle: 'News · Gallery · Videos · Podcasts',
+            accent: ContentTheme.primary,
+          ),
+          const SizedBox(height: 12),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 260),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    _quickTile(context, 'News', Icons.newspaper_rounded,
+                        ContentTheme.amber,
+                        () => _push(context,
+                            const NewsListScreen(title: 'News'))),
+                    const SizedBox(width: 12),
+                    _quickTile(context, 'Gallery', Icons.photo_library_rounded,
+                        ContentTheme.rose,
+                        () => _push(context, const GalleryScreen())),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _quickTile(context, 'Videos', Icons.play_circle_rounded,
+                        ContentTheme.violet, () => onOpenTab(1)),
+                    const SizedBox(width: 12),
+                    _quickTile(context, 'Podcasts', Icons.podcasts_rounded,
+                        ContentTheme.primary,
+                        () => _push(context, const PodcastsScreen())),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _quickTile(context, 'Fandom Hub', Icons.explore_rounded,
+                        ContentTheme.secondary,
+                        () => _push(context, const FandomHubScreen())),
+                    const SizedBox(width: 12),
+                    _quickTile(context, 'Library', Icons.history_rounded,
+                        ContentTheme.primaryDark,
+                        () => _push(context, const RecentContentScreen())),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ------------------------------------------------ badges + tasks
+          SectionHeader(
+            title: 'Your Badges',
+            subtitle: '${dashboard.badges.length} unlocked · ${dashboard.stats.badgeCount} total',
+            actionLabel: 'See all',
+            accent: ProfileTheme.amber,
+            onAction: () => _push(context, const ProfileBadgesScreen()),
+          ),
+          const SizedBox(height: 12),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 280),
+            child: SizedBox(
+              height: 74,
+              child: dashboard.badges.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Complete tasks to unlock your first badge',
+                        style: TextStyle(
+                          color: ProfileTheme.textMuted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: dashboard.badges.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 10),
+                      itemBuilder: (context, index) =>
+                          _BadgeChip(badge: dashboard.badges[index]),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ------------------------------------------------ tasks + invite
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 300),
+            child: _buildTaskProgress(context, dashboard),
+          ),
+          const SizedBox(height: 14),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 320),
+            child: InviteSummaryCard(
+              user: user,
+              onTap: () => _push(context, const InviteFriendsScreen()),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ------------------------------------------------ community (MEMBER 3)
+          SectionHeader(
+            title: 'Community',
+            subtitle: 'Discussions, trending & search',
+            actionLabel: 'All discussions',
+            accent: AppTheme.primaryColor,
+            onAction: () => _push(context, const DiscussionsScreen()),
+          ),
+          const SizedBox(height: 12),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 340),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    _quickTile(context, 'Trending',
+                        Icons.local_fire_department_rounded,
+                        AppTheme.secondaryColor,
+                        () => _push(context, const TrendingScreen())),
+                    const SizedBox(width: 12),
+                    _quickTile(context, 'Deep Dive',
+                        Icons.auto_awesome_rounded, AppTheme.primaryColor,
+                        () => _push(context, const DiscussionsScreen())),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _quickTile(context, 'Search', Icons.search_rounded,
+                        AppTheme.accentCyan,
+                        () => _push(context, const SearchScreen())),
+                    const SizedBox(width: 12),
+                    _quickTile(context, 'Bookmarks',
+                        Icons.bookmark_rounded, Colors.amber,
+                        () => onOpenTab(4)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ------------------------------------------------ events (MEMBER 4)
+          SectionHeader(
+            title: 'Events Near You',
+            subtitle: 'Conventions, meetups & screenings',
+            actionLabel: 'See all',
+            accent: EventTheme.primary,
+            onAction: () => onOpenTab(2),
+          ),
+          const SizedBox(height: 12),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 360),
+            child: _buildNextEvent(context, dashboard.nextEvent),
+          ),
+          const SizedBox(height: 12),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 380),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    _quickTile(context, 'Map', Icons.map_rounded,
+                        EventTheme.teal,
+                        () => _push(context, const EventMapScreen())),
+                    const SizedBox(width: 12),
+                    _quickTile(context, 'Calendar', Icons.calendar_month_rounded,
+                        EventTheme.amber,
+                        () => _push(context, const EventCalendarScreen())),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    _quickTile(context, 'Categories', Icons.category_rounded,
+                        EventTheme.primary,
+                        () => _push(context, const EventCategoriesScreen())),
+                    const SizedBox(width: 12),
+                    _quickTile(context, 'Interested', Icons.favorite_rounded,
+                        EventTheme.secondary,
+                        () => _push(context, const SavedEventsScreen())),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          Center(
+            child: Text(
+              'FANDOM VERSE · One App · All Fandoms · Infinite Possibilities',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: Colors.white.withValues(alpha: 0.25),
+                fontSize: 10.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // pieces
+  // ------------------------------------------------------------------
+
+  Widget _buildHeader(BuildContext context, HomeDashboard dashboard) {
+    final community = context.watch<CommunityProvider>();
+
+    return Row(
+      children: [
+        const FandomLogoWidget(height: 34),
+        const Spacer(),
+        IconButton(
+          icon: const Icon(Icons.search_rounded, color: Colors.white, size: 22),
+          onPressed: () => _push(context, const SearchScreen()),
+        ),
+        Stack(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.notifications_none_rounded,
+                  color: Colors.white, size: 22),
+              onPressed: () async {
+                await _push(context, const NotificationsScreen());
+                if (context.mounted) community.refreshUnreadCount();
+              },
+            ),
+            if (community.unreadCount > 0 || dashboard.unreadNotifications > 0)
+              Positioned(
+                right: 6,
+                top: 6,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: AppTheme.secondaryColor,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '${community.unreadCount > 0 ? community.unreadCount : dashboard.unreadNotifications}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(width: 4),
+        PressScale(
+          onTap: () => onOpenTab(5),
+          child: AppAvatar(
+            path: dashboard.user.avatar,
+            name: dashboard.user.name,
+            radius: 18,
+            ringColor: ProfileTheme.primary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildGreetingCard(BuildContext context, ProfileUser user) {
+    final stats = context.watch<ProfileProvider>().stats;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: ProfileTheme.headerGradient,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: ProfileTheme.primary.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${context.watch<ProfileProvider>().dashboard?.greeting ?? 'Welcome'}, ${user.name.split(' ').first}!',
+                      style: GoogleFonts.outfit(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Ready to explore your fandoms?',
+                      style: GoogleFonts.inter(
+                        color: Colors.white.withValues(alpha: 0.85),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(14),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.28)),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'Lv ${user.level}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      ProfileTheme.levelName(user.level),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 8.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              _greetingStat(Icons.workspace_premium_rounded,
+                  '${user.points}', 'Points'),
+              Container(
+                width: 1,
+                height: 28,
+                color: Colors.white.withValues(alpha: 0.22),
+              ),
+              _greetingStat(Icons.auto_awesome_rounded,
+                  '${stats.fandomCount}', 'Fandoms'),
+              Container(
+                width: 1,
+                height: 28,
+                color: Colors.white.withValues(alpha: 0.22),
+              ),
+              _greetingStat(Icons.task_alt_rounded,
+                  '${stats.completedTasks}/${stats.totalTasks}', 'Tasks'),
+              Container(
+                width: 1,
+                height: 28,
+                color: Colors.white.withValues(alpha: 0.22),
+              ),
+              _greetingStat(Icons.download_done_rounded,
+                  '${stats.offlineCount}', 'Offline'),
+            ],
+          ),
+          const SizedBox(height: 12),
+          AnimatedProgressBar(
+            value: user.levelProgress,
+            height: 6,
+            colors: const [Colors.white, Color(0xFFE0E7FF)],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _greetingStat(IconData icon, String value, String label) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.white70, size: 14),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12.5,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 9),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchBar(BuildContext context) {
+    return PressScale(
+      onTap: () => _push(context, const SearchScreen()),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        decoration: BoxDecoration(
+          color: AppTheme.inputFillColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.search_rounded, color: AppTheme.textMuted, size: 19),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Search fandoms, news, events...',
+                style: GoogleFonts.inter(
+                  color: AppTheme.textMuted,
+                  fontSize: 13.5,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: ProfileTheme.primary.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Icon(Icons.tune_rounded,
+                  color: ProfileTheme.primary, size: 14),
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHomeDashboard(String userName) {
-    final eventProvider = context.watch<EventProvider>();
+  Widget _buildTaskProgress(BuildContext context, HomeDashboard dashboard) {
+    final completed = dashboard.stats.completedTasks;
+    final total = dashboard.stats.totalTasks == 0 ? 1 : dashboard.stats.totalTasks;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top Header Bar
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const FandomLogoWidget(height: 38),
-              Row(
+    return PressScale(
+      onTap: () => _push(context, const SocialTasksScreen()),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: ProfileTheme.card,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: ProfileTheme.green.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(Icons.task_alt_rounded,
+                  color: ProfileTheme.green, size: 20),
+            ),
+            const SizedBox(width: 13),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.search_rounded, color: Colors.white),
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const SearchScreen()),
-                      );
-                    },
-                  ),
-                  // Notifications with unread badge (MEMBER 3)
-                  Consumer<CommunityProvider>(
-                    builder: (context, community, _) => Stack(
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.notifications_none_rounded,
-                            color: Colors.white,
-                          ),
-                          onPressed: () async {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const NotificationsScreen(),
-                              ),
-                            );
-                            if (context.mounted) community.refreshUnreadCount();
-                          },
-                        ),
-                        if (community.unreadCount > 0)
-                          Positioned(
-                            right: 6,
-                            top: 6,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 5,
-                                vertical: 1,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.secondaryColor,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                community.unreadCount > 9
-                                    ? '9+'
-                                    : '${community.unreadCount}',
-                                style: GoogleFonts.inter(
-                                  color: Colors.white,
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: AppTheme.primaryColor,
-                    child: Text(
-                      userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                      style: GoogleFonts.outfit(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // Greeting Text
-          Text(
-            'Hello, $userName! 👋',
-            style: GoogleFonts.outfit(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          Text(
-            'Good to see you back!',
-            style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textSecondary),
-          ),
-          const SizedBox(height: 20),
-
-          // Search Input Bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            decoration: BoxDecoration(
-              color: AppTheme.inputFillColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.search_rounded, color: AppTheme.textMuted),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Search fandoms, news, events...',
-                      hintStyle: GoogleFonts.inter(color: AppTheme.textMuted, fontSize: 14),
-                      border: InputBorder.none,
-                      enabledBorder: InputBorder.none,
-                      focusedBorder: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 28),
-
-          // Trending Now Banner Card
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Trending Now',
-                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              TextButton(
-                onPressed: () {},
-                child: Text('View All', style: GoogleFonts.inter(color: AppTheme.primaryColor, fontSize: 13)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Featured Card (One Piece / Anime Featured)
-          Container(
-            height: 190,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(24),
-              gradient: const LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF8B5CF6), Color(0xFFEC4899)],
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.primaryColor.withOpacity(0.4),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -20,
-                  bottom: -20,
-                  child: Icon(
-                    Icons.auto_awesome_rounded,
-                    size: 180,
-                    color: Colors.white.withOpacity(0.15),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.end,
+                  Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withOpacity(0.4),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                      const Expanded(
                         child: Text(
-                          'HOT FEATURED',
-                          style: GoogleFonts.inter(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          'Social & Tasks',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 8),
                       Text(
-                        'One Piece - Wano Arc Finale',
-                        style: GoogleFonts.outfit(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'New episode & latest community updates',
-                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 13),
-                      ),
-                      const SizedBox(height: 12),
-                      ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: AppTheme.primaryColor,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        '$completed/$total',
+                        style: const TextStyle(
+                          color: ProfileTheme.textSecondary,
+                          fontSize: 12,
                         ),
-                        child: Text('Read More', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 28),
-
-          // Your Fandoms Horizontal Chips
-          Text(
-            'Your Fandoms',
-            style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          const SizedBox(height: 14),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _buildFandomCategoryChip('Anime', Icons.auto_awesome_rounded, AppTheme.secondaryColor),
-                _buildFandomCategoryChip('Gaming', Icons.sports_esports_rounded, Colors.blue),
-                _buildFandomCategoryChip('Movies', Icons.movie_creation_rounded, Colors.amber),
-                _buildFandomCategoryChip('Comics', Icons.menu_book_rounded, Colors.orange),
-                _buildFandomCategoryChip('K-Pop', Icons.music_note_rounded, Colors.green),
-              ],
-            ),
-          ),
-          const SizedBox(height: 28),
-
-          // ============================================================
-          // MEMBER 3 - Search & Community quick access
-          // ============================================================
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Community',
-                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const DiscussionsScreen()),
-                  );
-                },
-                child: Text('All discussions', style: GoogleFonts.inter(color: AppTheme.primaryColor, fontSize: 13)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildCommunityTile(
-                'Trending',
-                Icons.local_fire_department_rounded,
-                AppTheme.secondaryColor,
-                () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const TrendingScreen()),
-                ),
-              ),
-              const SizedBox(width: 12),
-              _buildCommunityTile(
-                'Deep Dive',
-                Icons.auto_awesome_rounded,
-                AppTheme.primaryColor,
-                () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const DiscussionsScreen()),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildCommunityTile(
-                'Search',
-                Icons.search_rounded,
-                AppTheme.accentCyan,
-                () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SearchScreen()),
-                ),
-              ),
-              const SizedBox(width: 12),
-              _buildCommunityTile(
-                'Bookmarks',
-                Icons.bookmark_rounded,
-                Colors.amber,
-                () => setState(() => _currentIndex = 3),
-              ),
-            ],
-          ),
-          const SizedBox(height: 28),
-
-          // ============================================================
-          // MEMBER 4 - Events & Maps quick access
-          // ============================================================
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Events Near You',
-                style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              TextButton(
-                onPressed: () => setState(() => _currentIndex = 1),
-                child: Text('See all', style: GoogleFonts.inter(color: EventTheme.primary, fontSize: 13)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          if (eventProvider.nextEvent != null)
-            _buildNextEventCard(eventProvider.nextEvent!)
-          else
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppTheme.cardColor,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.event_busy_rounded, color: EventTheme.primary),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Loading upcoming events...',
-                      style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 13),
-                    ),
+                  const SizedBox(height: 9),
+                  AnimatedProgressBar(
+                    value: completed / total,
+                    height: 8,
+                    colors: const [ProfileTheme.green, ProfileTheme.cyan],
                   ),
                 ],
               ),
             ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildCommunityTile(
-                'Map',
-                Icons.map_rounded,
-                EventTheme.teal,
-                () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const EventMapScreen()),
-                ),
-              ),
-              const SizedBox(width: 12),
-              _buildCommunityTile(
-                'Calendar',
-                Icons.calendar_month_rounded,
-                EventTheme.amber,
-                () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const EventCalendarScreen()),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildCommunityTile(
-                'Categories',
-                Icons.category_rounded,
-                EventTheme.primary,
-                () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const EventCategoriesScreen()),
-                ),
-              ),
-              const SizedBox(width: 12),
-              _buildCommunityTile(
-                'Interested',
-                Icons.favorite_rounded,
-                EventTheme.secondary,
-                () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const SavedEventsScreen()),
-                ),
-              ),
-            ],
-          ),
-        ],
+            const SizedBox(width: 8),
+            const Icon(Icons.chevron_right_rounded,
+                color: ProfileTheme.textMuted, size: 20),
+          ],
+        ),
       ),
     );
   }
 
-  /// Compact "next event" card for the home dashboard (MEMBER 4).
-  Widget _buildNextEventCard(EventItem event) {
-    return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => EventDetailsScreen(eventId: event.id, event: event),
+  Widget _buildNextEvent(BuildContext context, NextEventPreview? event) {
+    if (event == null) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppTheme.cardColor,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         ),
-      ),
+        child: Row(
+          children: const [
+            Icon(Icons.event_busy_rounded, color: EventTheme.primary),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'No upcoming events yet - check back soon.',
+                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return PressScale(
+      onTap: () => onOpenTab(2),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -548,9 +1128,9 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: EventTheme.primary.withOpacity(0.35),
-              blurRadius: 16,
-              offset: const Offset(0, 7),
+              color: EventTheme.primary.withValues(alpha: 0.34),
+              blurRadius: 18,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -561,8 +1141,8 @@ class _HomeScreenState extends State<HomeScreen> {
               bottom: -26,
               child: Icon(
                 EventTheme.categoryIcon(event.category),
-                size: 120,
-                color: Colors.white.withOpacity(0.15),
+                size: 116,
+                color: Colors.white.withValues(alpha: 0.15),
               ),
             ),
             Column(
@@ -571,11 +1151,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.32),
+                    color: Colors.black.withValues(alpha: 0.32),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    EventTheme.countdown(event.daysUntil).toUpperCase(),
+                    'NEXT EVENT · ${event.eventDate}',
                     style: GoogleFonts.inter(
                       color: Colors.white,
                       fontSize: 9.5,
@@ -599,21 +1179,25 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    const Icon(Icons.location_on_rounded, color: Colors.white70, size: 13),
+                    const Icon(Icons.location_on_rounded,
+                        color: Colors.white70, size: 13),
                     const SizedBox(width: 5),
                     Expanded(
                       child: Text(
                         '${event.venue}, ${event.city}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(color: Colors.white70, fontSize: 11.5),
+                        style: GoogleFonts.inter(
+                          color: Colors.white70,
+                          fontSize: 11.5,
+                        ),
                       ),
                     ),
                     Text(
-                      EventTheme.prettyDate(event.eventDate),
+                      event.category,
                       style: GoogleFonts.inter(
                         color: Colors.white,
-                        fontSize: 11.5,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -627,41 +1211,43 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Small quick-access card used by the community section of the dashboard.
-  Widget _buildCommunityTile(
+  Widget _quickTile(
+    BuildContext context,
     String label,
     IconData icon,
     Color color,
     VoidCallback onTap,
   ) {
     return Expanded(
-      child: GestureDetector(
+      child: PressScale(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 15),
           decoration: BoxDecoration(
             color: AppTheme.cardColor,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.18),
+                  color: color.withValues(alpha: 0.18),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, color: color, size: 18),
+                child: Icon(icon, color: color, size: 17),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.inter(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
-                    fontSize: 13.5,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -671,146 +1257,266 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
 
-  Widget _buildFandomCategoryChip(String title, IconData icon, Color color) {
-    return Container(
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle),
-            child: Icon(icon, color: color, size: 18),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            title,
-            style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
-          ),
-        ],
-      ),
+// ---------------------------------------------------------------------------
+// dashboard pieces
+// ---------------------------------------------------------------------------
+
+class _TrendingFandomCard extends StatelessWidget {
+  const _TrendingFandomCard({required this.fandom, this.onTap});
+
+  final TrendingFandom fandom;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = ProfileTheme.parseColor(
+      fandom.color,
+      fallback: ProfileTheme.fandomColor(fandom.name),
     );
-  }
 
-  Widget _buildProfileTab(String userName, String userEmail, AuthProvider authProvider) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          const SizedBox(height: 12),
-          Center(
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: AppTheme.buttonGradient,
-              ),
-              child: CircleAvatar(
-                radius: 48,
-                backgroundColor: AppTheme.cardColor,
-                child: Text(
-                  userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
-                  style: GoogleFonts.outfit(fontSize: 42, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-              ),
+    return PressScale(
+      onTap: onTap,
+      child: Hero(
+        tag: 'fandom-${fandom.name}',
+        child: Container(
+          width: 158,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: fandom.isSelected
+                  ? color.withValues(alpha: 0.8)
+                  : Colors.white.withValues(alpha: 0.08),
+              width: fandom.isSelected ? 1.6 : 1,
             ),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.28),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            userName,
-            style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          Text(
-            userEmail,
-            style: GoogleFonts.inter(fontSize: 14, color: AppTheme.textSecondary),
-          ),
-          const SizedBox(height: 20),
-
-          // User status badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: AppTheme.successColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppTheme.successColor.withOpacity(0.4)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(19),
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                const Icon(Icons.verified_user_rounded, color: AppTheme.successColor, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  'Authenticated via Provider State',
-                  style: GoogleFonts.inter(
-                    color: AppTheme.successColor,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
+                AppImage(
+                  path: ProfileTheme.fandomArtwork(fandom.name),
+                  fallbackColors: [color, ProfileTheme.primaryDark],
+                  fallbackIcon: ProfileTheme.fandomIcon(fandom.name),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.05),
+                        Colors.black.withValues(alpha: 0.88),
+                      ],
+                      stops: const [0.35, 1],
+                    ),
+                  ),
+                ),
+                if (fandom.isSelected)
+                  Positioned(
+                    top: 9,
+                    right: 9,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: color,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.check_rounded,
+                          color: Colors.white, size: 11),
+                    ),
+                  ),
+                Positioned(
+                  left: 11,
+                  right: 11,
+                  bottom: 11,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          fandom.hashtag,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        fandom.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${ProfileTheme.compactCount(fandom.followersCount)} fans',
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 32),
+        ),
+      ),
+    );
+  }
+}
 
-          // Settings items list
-          _buildProfileOptionItem(Icons.person_outline_rounded, 'Edit Profile', () {}),
-          _buildProfileOptionItem(Icons.bookmark_outline_rounded, 'My Saved Fandoms', () {}),
-          _buildProfileOptionItem(Icons.settings_outlined, 'Settings', () {}),
-          const SizedBox(height: 16),
+class _ContinueCard extends StatelessWidget {
+  const _ContinueCard({required this.item, this.onTap});
 
-          // Logout Button
-          ListTile(
-            onTap: _handleLogout,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            tileColor: AppTheme.errorColor.withOpacity(0.12),
-            leading: const Icon(Icons.logout_rounded, color: AppTheme.errorColor),
-            title: Text(
-              'Logout',
-              style: GoogleFonts.inter(color: AppTheme.errorColor, fontWeight: FontWeight.bold),
+  final ContinueWatching item;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = ContentTheme.contentTypeColor(item.contentType);
+
+    return PressScale(
+      onTap: onTap,
+      child: Container(
+        width: 208,
+        decoration: BoxDecoration(
+          color: ContentTheme.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(17),
+              ),
+              child: AppImage(
+                path: item.imageUrl,
+                height: 84,
+                fallbackIcon: ContentTheme.contentTypeIcon(item.contentType),
+                fallbackColors: [color, ContentTheme.primaryDark],
+              ),
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(11, 9, 11, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  AnimatedProgressBar(
+                    value: item.percentage / 100,
+                    height: 5,
+                    colors: [color, ContentTheme.secondary],
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Text(
+                        '${item.percentage}% complete',
+                        style: const TextStyle(
+                          color: ContentTheme.textMuted,
+                          fontSize: 9.5,
+                        ),
+                      ),
+                      if (item.isOffline) ...[
+                        const Spacer(),
+                        const Icon(Icons.download_done_rounded,
+                            size: 11, color: ContentTheme.primary),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
 
-  Widget _buildProfileOptionItem(IconData icon, String title, VoidCallback onTap) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: ListTile(
-        onTap: onTap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        tileColor: AppTheme.cardColor,
-        leading: Icon(icon, color: AppTheme.textSecondary),
-        title: Text(title, style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w500)),
-        trailing: const Icon(Icons.chevron_right_rounded, color: AppTheme.textMuted),
+class _BadgeChip extends StatelessWidget {
+  const _BadgeChip({required this.badge});
+
+  final ProfileBadge badge;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = badge.displayColor;
+
+    return PressScale(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const ProfileBadgesScreen()),
       ),
-    );
-  }
-
-  Widget _buildPlaceholderTab(String title, IconData icon) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 64, color: AppTheme.secondaryColor),
-          const SizedBox(height: 16),
-          Text(
-            title,
-            style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Explore & discover content in $title',
-            style: GoogleFonts.inter(color: AppTheme.textSecondary),
-          ),
-        ],
+      child: Container(
+        width: 150,
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+        decoration: BoxDecoration(
+          color: ProfileTheme.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.45)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.18),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(ProfileTheme.icon(badge.icon), color: color, size: 15),
+            ),
+            const SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                badge.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  height: 1.2,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

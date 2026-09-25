@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_alert.dart';
 import 'fandom_selection_screen.dart';
 import 'login_screen.dart';
 
@@ -37,26 +38,19 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     if (!mounted) return;
 
     if (response.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response.message),
-          backgroundColor: AppTheme.successColor,
-          behavior: SnackBarBehavior.floating,
-        ),
+      await showSuccessAlert(
+        context,
+        response.message,
+        title: 'Email Verified',
       );
+      if (!mounted) return;
 
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const FandomSelectionScreen()),
         (route) => false,
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response.message),
-          backgroundColor: AppTheme.errorColor,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      await showErrorAlert(context, response.message, title: 'Verification Failed');
     }
   }
 
@@ -88,7 +82,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                         gradient: AppTheme.buttonGradient,
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.primaryColor.withOpacity(0.5),
+                            color: AppTheme.primaryColor.withValues(alpha: 0.5),
                             blurRadius: 30,
                             spreadRadius: 4,
                           ),
@@ -163,7 +157,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: AppTheme.primaryColor.withOpacity(0.4),
+                                color: AppTheme.primaryColor.withValues(alpha: 0.4),
                                 blurRadius: 18,
                                 offset: const Offset(0, 6),
                               ),

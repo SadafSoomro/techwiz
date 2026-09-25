@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/animated_widgets.dart';
+import '../widgets/app_alert.dart';
 import '../widgets/fandom_logo.dart';
 import '../widgets/social_buttons.dart';
 import 'forgot_password_screen.dart';
@@ -43,26 +45,24 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (response.success && authProvider.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response.message),
-          backgroundColor: AppTheme.successColor,
-          behavior: SnackBarBehavior.floating,
-        ),
+      await showSuccessAlert(
+        context,
+        response.message,
+        title: 'Login Successful',
       );
+      if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
       );
     } else {
       if (response.message.toLowerCase().contains('verify your email')) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response.message),
-            backgroundColor: Colors.orange,
-            behavior: SnackBarBehavior.floating,
-          ),
+        await showWarningAlert(
+          context,
+          response.message,
+          title: 'Verify Your Email',
         );
+        if (!mounted) return;
 
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -70,13 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response.message),
-            backgroundColor: AppTheme.errorColor,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        await showErrorAlert(context, response.message, title: 'Login Failed');
       }
     }
   }
@@ -88,13 +82,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (response.success && authProvider.isAuthenticated) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response.message),
-          backgroundColor: AppTheme.successColor,
-          behavior: SnackBarBehavior.floating,
-        ),
+      await showSuccessAlert(
+        context,
+        response.message,
+        title: 'Login Successful',
       );
+      if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -107,12 +100,10 @@ class _LoginScreenState extends State<LoginScreen> {
           response.message.toLowerCase().contains('console')) {
         _showGoogleEmailFallbackDialog();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(response.message),
-            backgroundColor: AppTheme.errorColor,
-            behavior: SnackBarBehavior.floating,
-          ),
+        await showErrorAlert(
+          context,
+          response.message,
+          title: 'Google Sign In Failed',
         );
       }
     }
@@ -122,7 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final googleEmailController = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         backgroundColor: AppTheme.cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
@@ -155,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
           ),
           ElevatedButton(
@@ -163,33 +154,31 @@ class _LoginScreenState extends State<LoginScreen> {
               final email = googleEmailController.text.trim();
               if (email.isEmpty || !email.contains('@')) return;
 
-              final messenger = ScaffoldMessenger.of(context);
-              final navigator = Navigator.of(context);
+              Navigator.of(dialogContext).pop();
 
-              navigator.pop();
-              final authProvider = Provider.of<AuthProvider>(context, listen: false);
+              final authProvider =
+                  Provider.of<AuthProvider>(context, listen: false);
               final res = await authProvider.loginWithGoogleEmail(email: email);
 
               if (!mounted) return;
 
               if (res.success && authProvider.isAuthenticated) {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(res.message),
-                    backgroundColor: AppTheme.successColor,
-                    behavior: SnackBarBehavior.floating,
-                  ),
+                await showSuccessAlert(
+                  context,
+                  res.message,
+                  title: 'Login Successful',
                 );
-                navigator.pushReplacement(
+                if (!mounted) return;
+
+                Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (_) => const HomeScreen()),
                 );
               } else {
-                messenger.showSnackBar(
-                  SnackBar(
-                    content: Text(res.message),
-                    backgroundColor: AppTheme.errorColor,
-                    behavior: SnackBarBehavior.floating,
-                  ),
+                if (!mounted) return;
+                await showErrorAlert(
+                  context,
+                  res.message,
+                  title: 'Google Sign In Failed',
                 );
               }
             },
@@ -221,29 +210,38 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Official FANDOM VERSE Logo
-                  const Center(
-                    child: FandomLogoWidget(height: 120),
+                  // Official FANDOM VERSE Logo (animated in)
+                  FadeSlideIn(
+                    child: const Center(
+                      child: FandomLogoWidget(height: 120),
+                    ),
                   ),
                   const SizedBox(height: 16),
 
                   // Welcome Back Title & Subtitle
-                  Text(
-                    'Welcome Back!',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.outfit(
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Dive into your favorite fandoms',
-                    textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 14,
-                      color: AppTheme.textSecondary,
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 90),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Welcome Back!',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.outfit(
+                            fontSize: 28,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Dive into your favorite fandoms',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 28),

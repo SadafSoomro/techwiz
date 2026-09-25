@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_alert.dart';
 import 'reset_password_screen.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -41,13 +42,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     if (!mounted) return;
 
     if (response.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response.message),
-          backgroundColor: AppTheme.successColor,
-          behavior: SnackBarBehavior.floating,
-        ),
+      await showSuccessAlert(
+        context,
+        response.message,
+        title: 'Reset Code Sent',
       );
+      if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
@@ -57,13 +57,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response.message),
-          backgroundColor: AppTheme.errorColor,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      await showErrorAlert(context, response.message, title: 'Could Not Send Code');
     }
   }
 
@@ -106,7 +100,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         gradient: AppTheme.buttonGradient,
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.primaryColor.withOpacity(0.5),
+                            color: AppTheme.primaryColor.withValues(alpha: 0.5),
                             blurRadius: 30,
                             spreadRadius: 4,
                           ),
@@ -174,7 +168,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: AppTheme.primaryColor.withOpacity(0.4),
+                                color: AppTheme.primaryColor.withValues(alpha: 0.4),
                                 blurRadius: 18,
                                 offset: const Offset(0, 6),
                               ),

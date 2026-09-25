@@ -12,3 +12,10 @@ backend/mydb.sqlite
 backend/mydb.sqlite-journal
 backend/tests/report.txt
 backend/tests/events_report.txt
+backend/tests/content_report.txt
+backend/tests/profile_report.txt
+
+# Flutter analysis / build check scratch output
+frontend/analyze*.txt
+frontend/errors.txt
+frontend/build_check.txt

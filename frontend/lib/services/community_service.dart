@@ -190,7 +190,7 @@ class CommunityService {
         'q': query,
         'limit': limit,
         'offset': offset,
-        if (userId != null) 'user_id': userId,
+        'user_id': ?userId,
       });
 
       if (json?['success'] == true) {

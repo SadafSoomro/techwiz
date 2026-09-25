@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/profile_provider.dart';
 import '../theme/app_theme.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
@@ -33,23 +34,95 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _navigateNext() async {
-    await Future.delayed(const Duration(milliseconds: 2500));
-    if (!mounted) return;
+    final authProvider = context.read<AuthProvider>();
+    final profileProvider = context.read<ProfileProvider>();
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    // The splash always stays on screen for at least this long, so it is never
+    // skipped (or flashed) before the next screen is ready.
+    final minimumDisplay = Future<void>.delayed(
+      const Duration(milliseconds: 2500),
+    );
+
+    // 1. Restore the saved session while the artwork is on screen.
     await authProvider.checkAuthStatus();
 
+    if (authProvider.isAuthenticated) {
+      // 2. Load the dashboard aggregate BEFORE navigating, so the Home screen
+      //    is fully populated the moment it appears (no shimmer / empty state).
+      await _prepareHome(profileProvider);
+    } else {
+      // 3. Make the login screen ready before it is shown: its artwork is
+      //    precached so nothing pops in after the transition.
+      await _prepareLoginArtwork();
+    }
+
+    // 4. Hold the splash until the minimum display time has also elapsed.
+    await minimumDisplay;
     if (!mounted) return;
 
     if (authProvider.isAuthenticated) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        _readyRoute(const HomeScreen()),
       );
     } else {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        _readyRoute(const LoginScreen()),
       );
     }
+  }
+
+  /// Preloads the Home dashboard. A slow or failing request can never hold the
+  /// splash hostage - it is capped and errors are swallowed.
+  Future<void> _prepareHome(ProfileProvider profileProvider) async {
+    try {
+      await profileProvider
+          .loadDashboard()
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // The Home screen shows its own error/empty state if this fails.
+    }
+  }
+
+  /// Warms the image cache with the artwork the login screen renders.
+  Future<void> _prepareLoginArtwork() async {
+    const assets = [
+      'assets/images/fandom_logo.png',
+      'assets/images/google_logo.png',
+    ];
+
+    for (final path in assets) {
+      try {
+        await precacheImage(AssetImage(path), context)
+            .timeout(const Duration(seconds: 3));
+      } catch (_) {
+        // A missing asset must never block the splash.
+      }
+    }
+  }
+
+  /// A fade-through route so the next screen is fully built before the splash
+  /// fades away instead of appearing abruptly.
+  PageRouteBuilder<void> _readyRoute(Widget screen) {
+    return PageRouteBuilder<void>(
+      transitionDuration: const Duration(milliseconds: 450),
+      pageBuilder: (_, _, _) => screen,
+      transitionsBuilder: (_, animation, _, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.03),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
   }
 
   @override

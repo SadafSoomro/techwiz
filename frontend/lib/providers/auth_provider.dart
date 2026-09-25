@@ -20,7 +20,9 @@ class AuthProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   AuthProvider() {
-    checkAuthStatus();
+    // Deferred: restoring the session calls notifyListeners(), which must not
+    // happen while the widget tree is still building the provider.
+    Future.microtask(checkAuthStatus);
   }
 
   void _setLoading(bool loading) {

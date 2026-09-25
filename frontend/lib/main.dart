@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/community_provider.dart';
+import 'providers/content_provider.dart';
 import 'providers/event_provider.dart';
+import 'providers/profile_provider.dart';
 import 'screens/splash_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -19,6 +21,10 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        // MEMBER 1 - Profile, Fandom Selection & Home
+        ChangeNotifierProvider(create: (_) => ProfileProvider()),
+        // MEMBER 2 - Fandom Content (hub, news, gallery, video, podcasts)
+        ChangeNotifierProvider(create: (_) => ContentProvider()),
         // MEMBER 3 - Search & Community
         ChangeNotifierProvider(create: (_) => CommunityProvider()),
         // MEMBER 4 - Events & Maps

@@ -208,9 +208,9 @@ class ApiService {
         Uri.parse(ApiConfig.googleLoginUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          if (idToken != null) 'idToken': idToken,
-          if (email != null) 'email': email.trim().toLowerCase(),
-          if (name != null) 'name': name,
+          'idToken': ?idToken,
+          'email': ?email?.trim().toLowerCase(),
+          'name': ?name,
         }),
       );
 

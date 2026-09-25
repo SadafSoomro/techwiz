@@ -1,8 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../theme/app_theme.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/profile_provider.dart';
+import '../theme/profile_theme.dart';
+import '../widgets/animated_widgets.dart';
+import '../widgets/app_alert.dart';
+import '../widgets/content_widgets.dart';
+import '../widgets/profile_widgets.dart';
 import 'home_screen.dart';
 
+/// MEMBER 1 - Fandom Selection (the onboarding step after Sign Up).
+///
+/// SRS: "Role and Category Selection - users can select primary fandom
+/// interests (for example, Anime, Gaming, Sci-Fi, or Comics) during setup."
+///
+/// The choice is persisted through `PUT /api/profile/fandoms`; "Skip" stores
+/// nothing so the fan can pick later from My Fandoms.
 class FandomSelectionScreen extends StatefulWidget {
   const FandomSelectionScreen({super.key});
 
@@ -11,236 +25,297 @@ class FandomSelectionScreen extends StatefulWidget {
 }
 
 class _FandomSelectionScreenState extends State<FandomSelectionScreen> {
-  final List<Map<String, dynamic>> _fandoms = [
-    {
-      'id': 'anime',
-      'title': 'Anime',
-      'icon': Icons.auto_awesome_rounded,
-      'gradient': const [Color(0xFFEC4899), Color(0xFF8B5CF6)],
-      'selected': true,
-    },
-    {
-      'id': 'gaming',
-      'title': 'Gaming',
-      'icon': Icons.sports_esports_rounded,
-      'gradient': const [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-      'selected': true,
-    },
-    {
-      'id': 'movies',
-      'title': 'Movies & TV',
-      'icon': Icons.movie_creation_rounded,
-      'gradient': const [Color(0xFFEF4444), Color(0xFFB91C1C)],
-      'selected': false,
-    },
-    {
-      'id': 'comics',
-      'title': 'Comics',
-      'icon': Icons.menu_book_rounded,
-      'gradient': const [Color(0xFFF59E0B), Color(0xFFD97706)],
-      'selected': false,
-    },
-    {
-      'id': 'music',
-      'title': 'Music / K-Pop',
-      'icon': Icons.music_note_rounded,
-      'gradient': const [Color(0xFF10B981), Color(0xFF047857)],
-      'selected': true,
-    },
-  ];
+  bool _navigated = false;
 
-  void _toggleSelection(int index) {
-    setState(() {
-      _fandoms[index]['selected'] = !(_fandoms[index]['selected'] as bool);
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) context.read<ProfileProvider>().loadFandoms();
     });
+  }
+
+  Future<void> _goHome({bool skipped = false}) async {
+    if (_navigated) return;
+
+    final provider = context.read<ProfileProvider>();
+    final message = await provider.saveFandoms(skipped: skipped);
+    if (!mounted) return;
+
+    if (message == null) {
+      await showErrorAlert(
+        context,
+        provider.errorMessage ?? 'Could not save your fandoms',
+        title: 'Could Not Save',
+        accent: ProfileTheme.rose,
+      );
+      return;
+    }
+
+    _navigated = true;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<ProfileProvider>();
+    final fandoms = provider.fandoms;
+    final selected = provider.selected;
+    final canContinue = selected.isNotEmpty && !provider.saving;
+
+    final selectedColor = selected.isEmpty
+        ? ProfileTheme.primary
+        : ProfileTheme.fandomColor(selected.first);
+
     return Scaffold(
+      backgroundColor: ProfileTheme.background,
       body: Container(
         decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
+          gradient: ProfileTheme.backgroundGradient,
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 12),
-                Text(
-                  'Choose Your Fandoms',
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.outfit(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Select what you're interested in",
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // Grid of Fandom cards
-                Expanded(
-                  child: GridView.builder(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                      childAspectRatio: 1.1,
+          child: Column(
+            children: [
+              // ------------------------------------------------ header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
+                child: Column(
+                  children: [
+                    FadeSlideIn(
+                      child: Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          gradient: ProfileTheme.headerGradient,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: ProfileTheme.primary.withValues(alpha: 0.4),
+                              blurRadius: 22,
+                              offset: const Offset(0, 9),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(Icons.auto_awesome_rounded,
+                            color: Colors.white, size: 26),
+                      ),
                     ),
-                    itemCount: _fandoms.length,
-                    itemBuilder: (context, index) {
-                      final item = _fandoms[index];
-                      final isSelected = item['selected'] as bool;
-                      final colors = item['gradient'] as List<Color>;
+                    const SizedBox(height: 16),
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 70),
+                      child: const Text(
+                        'Select Fandoms',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 120),
+                      child: const Text(
+                        'Pick what you love - you can change this anytime',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: ProfileTheme.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
 
-                      return GestureDetector(
-                        onTap: () => _toggleSelection(index),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: colors,
-                            ),
-                            borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: isSelected ? Colors.white : Colors.transparent,
-                              width: 3,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: colors.first.withOpacity(isSelected ? 0.5 : 0.2),
-                                blurRadius: isSelected ? 20 : 8,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
-                          ),
-                          child: Stack(
-                            children: [
-                              // Background pattern
-                              Positioned(
-                                right: -10,
-                                bottom: -10,
-                                child: Icon(
-                                  item['icon'] as IconData,
-                                  size: 90,
-                                  color: Colors.white.withOpacity(0.15),
-                                ),
-                              ),
-
-                              // Content
-                              Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.2),
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        item['icon'] as IconData,
-                                        size: 28,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    const Spacer(),
-                                    Text(
-                                      item['title'] as String,
-                                      style: GoogleFonts.outfit(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              // Selection check icon
-                              if (isSelected)
-                                Positioned(
-                                  top: 12,
-                                  right: 12,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: const BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.check_rounded,
-                                      size: 16,
-                                      color: AppTheme.primaryColor,
-                                    ),
-                                  ),
-                                ),
-                            ],
+                    // selection counter
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 160),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: selectedColor.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(30),
+                          border: Border.all(
+                            color: selectedColor.withValues(alpha: 0.5),
                           ),
                         ),
-                      );
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Continue Button
-                Container(
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: AppTheme.buttonGradient,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppTheme.primaryColor.withOpacity(0.4),
-                        blurRadius: 18,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => const HomeScreen()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      shadowColor: Colors.transparent,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            PulsingCounter(count: selected.length),
+                            const SizedBox(width: 7),
+                            Text(
+                              selected.length == 1
+                                  ? 'fandom selected'
+                                  : 'fandoms selected',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    child: Text(
-                      'Continue',
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // ------------------------------------------------ grid
+              Expanded(
+                child: !provider.fandomSelectionLoaded
+                    ? _buildLoading()
+                    : fandoms.isEmpty
+                        ? const EmptyContentState(
+                            title: 'No fandoms available',
+                            message:
+                                'The fandom list could not be loaded. Check that the backend is running.',
+                            icon: Icons.cloud_off_rounded,
+                          )
+                        : GridView.builder(
+                            padding: const EdgeInsets.fromLTRB(22, 4, 22, 16),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 14,
+                              mainAxisSpacing: 14,
+                              childAspectRatio: 0.92,
+                            ),
+                            itemCount: fandoms.length,
+                            itemBuilder: (context, index) {
+                              final fandom = fandoms[index];
+                              final isSelected = selected.contains(fandom.name);
+                              return FadeSlideIn(
+                                delay: Duration(milliseconds: 60 * index),
+                                child: FandomSelectCard(
+                                  fandom: fandom,
+                                  selected: isSelected,
+                                  onTap: () {
+                                    HapticFeedback.selectionClick();
+                                    provider.toggleFandom(fandom.name);
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+              ),
+
+              // ------------------------------------------------ actions
+              Container(
+                padding: const EdgeInsets.fromLTRB(22, 14, 22, 18),
+                decoration: BoxDecoration(
+                  color: ProfileTheme.card.withValues(alpha: 0.7),
+                  border: Border(
+                    top: BorderSide(color: Colors.white.withValues(alpha: 0.07)),
                   ),
                 ),
-                const SizedBox(height: 12),
-              ],
-            ),
+                child: Column(
+                  children: [
+                    GradientActionButton(
+                      label: selected.isEmpty
+                          ? 'Next'
+                          : 'Next · ${selected.length} selected',
+                      icon: Icons.arrow_forward_rounded,
+                      busy: provider.saving,
+                      enabled: canContinue,
+                      onPressed: () => _goHome(),
+                    ),
+                    const SizedBox(height: 6),
+                    TextButton(
+                      onPressed:
+                          provider.saving ? null : () => _goHome(skipped: true),
+                      child: const Text(
+                        'Skip for now',
+                        style: TextStyle(
+                          color: ProfileTheme.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoading() {
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(22, 4, 22, 16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+        childAspectRatio: 0.92,
+      ),
+      itemCount: 6,
+      itemBuilder: (context, index) => const Shimmer(
+        height: 170,
+        borderRadius: BorderRadius.all(Radius.circular(20)),
+      ),
+    );
+  }
+}
+
+/// Small number that bumps every time the selection changes.
+class PulsingCounter extends StatefulWidget {
+  const PulsingCounter({super.key, required this.count});
+
+  final int count;
+
+  @override
+  State<PulsingCounter> createState() => _PulsingCounterState();
+}
+
+class _PulsingCounterState extends State<PulsingCounter>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+      lowerBound: 0.85,
+      upperBound: 1.15,
+      value: 1.0,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant PulsingCounter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.count != widget.count) {
+      _controller.forward(from: 1.15).then((_) => _controller.reverse());
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _controller,
+      child: Text(
+        '${widget.count}',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 15,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );

@@ -67,6 +67,10 @@ flutter:
     - assets/images/events/
     # MEMBER 3 - community fandom banner artwork
     - assets/images/fandoms/
+    # MEMBER 2 - news / gallery / video / podcast artwork
+    - assets/images/content/
+    # MEMBER 1 - avatar presets
+    - assets/images/avatars/
 
 
   # An image asset can refer to one or more resolution-specific "variants", see

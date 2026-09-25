@@ -86,4 +86,36 @@ class ApiConfig {
   static String eventSaveUrl(int eventId) => '$baseUrl/events/$eventId/save';
   static String eventBookTicketUrl(int eventId) =>
       '$baseUrl/events/$eventId/tickets';
+
+  // =====================================================================
+  // MEMBER 1 - Profile, Fandom Selection & Home endpoints
+  // =====================================================================
+
+  static String get profileHomeUrl => '$baseUrl/profile/home';
+  static String get profileMeUrl => '$baseUrl/profile/me';
+  static String get profileAvatarsUrl => '$baseUrl/profile/avatars';
+  static String get profileFandomsUrl => '$baseUrl/profile/fandoms';
+  static String get profileBadgesUrl => '$baseUrl/profile/badges';
+  static String get profileInviteUrl => '$baseUrl/profile/invite';
+  static String get profileInviteClaimUrl => '$baseUrl/profile/invite/claim';
+  static String get profileTasksUrl => '$baseUrl/profile/tasks';
+  static String profileTaskCompleteUrl(String code) =>
+      '$baseUrl/profile/tasks/$code/complete';
+  static String get profileSettingsUrl => '$baseUrl/profile/settings';
+
+  // =====================================================================
+  // MEMBER 2 - Fandom Content endpoints
+  // =====================================================================
+
+  static String get contentUrl => '$baseUrl/content';
+  static String get contentHubsUrl => '$baseUrl/content/hub';
+  static String contentHubUrl(String slug) => '$baseUrl/content/hub/$slug';
+  static String get contentGlossaryUrl => '$baseUrl/content/glossary';
+  static String get contentDiscoverUrl => '$baseUrl/content/discover';
+  static String get contentRecentUrl => '$baseUrl/content/recent';
+  static String get contentOfflineUrl => '$baseUrl/content/offline';
+  static String contentDetailsUrl(int id) => '$baseUrl/content/$id';
+  static String contentViewUrl(int id) => '$baseUrl/content/$id/view';
+  static String contentOfflineToggleUrl(int id) => '$baseUrl/content/$id/offline';
+  static String contentLikeUrl(int id) => '$baseUrl/content/$id/like';
 }
