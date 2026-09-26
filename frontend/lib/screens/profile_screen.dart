@@ -8,6 +8,8 @@ import '../widgets/animated_widgets.dart';
 import '../widgets/app_alert.dart';
 import '../widgets/app_image.dart';
 import '../widgets/profile_widgets.dart';
+import 'about_us_screen.dart';
+import 'contact_us_screen.dart';
 import 'edit_profile_screen.dart';
 import 'invite_friends_screen.dart';
 import 'login_screen.dart';
@@ -520,6 +522,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.settings_outlined,
         color: ProfileTheme.textSecondary,
         onTap: () => _push(const SettingsScreen()),
+      ),
+      SettingsActionTile(
+        title: 'Contact Us',
+        value: 'Enquiry form & office map',
+        icon: Icons.support_agent_rounded,
+        color: ProfileTheme.cyan,
+        onTap: () => _push(const ContactUsScreen()),
+      ),
+      SettingsActionTile(
+        title: 'About Us',
+        value: 'Team & app info',
+        icon: Icons.info_outline_rounded,
+        color: ProfileTheme.tertiary,
+        onTap: () => _push(const AboutUsScreen()),
       ),
       const SizedBox(height: 8),
       PressScale(

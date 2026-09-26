@@ -51,6 +51,28 @@ class _EventMapScreenState extends State<EventMapScreen> {
     return provider.savedEvents.where((e) => e.id == pinId).firstOrNull;
   }
 
+  /// "My location": re-acquires the device fix, recentres the map and
+  /// refreshes the pins/nearby list so the button always has a visible effect.
+  Future<void> _locateMe() async {
+    final provider = context.read<EventProvider>();
+
+    final city = await provider.recenterOnDeviceLocation();
+    if (!mounted) return;
+
+    setState(() => _selectedPinId = null);
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Showing events near $city'),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: EventTheme.surface,
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<EventProvider>();
@@ -64,13 +86,7 @@ class _EventMapScreenState extends State<EventMapScreen> {
         IconButton(
           tooltip: 'My location',
           icon: const Icon(Icons.my_location_rounded, color: EventTheme.teal),
-          onPressed: () {
-            context.read<EventProvider>().useDeviceLocation(
-                  lat: provider.latitude,
-                  lng: provider.longitude,
-                );
-            setState(() => _selectedPinId = null);
-          },
+          onPressed: _locateMe,
         ),
       ],
       child: Stack(
@@ -87,6 +103,12 @@ class _EventMapScreenState extends State<EventMapScreen> {
                     currentLatitude: provider.latitude,
                     currentLongitude: provider.longitude,
                     currentLabel: provider.currentCity,
+                    // Keep the compass / "you are here" chip clear of the
+                    // filter bar and the scale bar clear of the bottom card.
+                    overlayPadding: EdgeInsets.only(
+                      top: 96,
+                      bottom: selectedEvent != null ? 158 : 138,
+                    ),
                     onPinTap: (pin) => setState(() => _selectedPinId = pin.id),
                   ),
           ),

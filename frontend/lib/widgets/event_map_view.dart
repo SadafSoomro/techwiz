@@ -24,6 +24,11 @@ class EventMapView extends StatelessWidget {
   /// Shows the compass, scale bar and grid overlay.
   final bool showOverlays;
 
+  /// Space reserved by the screen around the map (the filter bar at the top,
+  /// the nearby carousel / event card at the bottom). Overlays and pins are
+  /// kept inside this gap so nothing overlaps.
+  final EdgeInsets overlayPadding;
+
   const EventMapView({
     super.key,
     required this.pins,
@@ -34,6 +39,7 @@ class EventMapView extends StatelessWidget {
     this.currentLongitude,
     this.currentLabel = 'You',
     this.showOverlays = true,
+    this.overlayPadding = EdgeInsets.zero,
   });
 
   @override
@@ -47,7 +53,15 @@ class EventMapView extends StatelessWidget {
           extraLng: showCurrentLocation ? currentLongitude : null,
         );
 
-        const pad = EdgeInsets.symmetric(horizontal: 46, vertical: 60);
+        // Pins are projected inside the area that is not covered by the
+        // screen's own chrome (filter bar / carousel), so no pin is ever
+        // drawn underneath them.
+        final pad = EdgeInsets.fromLTRB(
+          46,
+          60 + overlayPadding.top,
+          46,
+          60 + overlayPadding.bottom,
+        );
 
         return ClipRect(
           child: Stack(
@@ -96,19 +110,19 @@ class EventMapView extends StatelessWidget {
 
               // ------------------------ overlays ------------------------
               if (showOverlays) ...[
-                const Positioned(
-                  top: 14,
+                Positioned(
+                  top: 14 + overlayPadding.top,
                   right: 14,
-                  child: _Compass(),
+                  child: const _Compass(),
                 ),
-                const Positioned(
+                Positioned(
                   left: 14,
-                  bottom: 14,
-                  child: _ScaleBar(),
+                  bottom: 14 + overlayPadding.bottom,
+                  child: const _ScaleBar(),
                 ),
                 if (showCurrentLocation)
                   Positioned(
-                    top: 14,
+                    top: 14 + overlayPadding.top,
                     left: 14,
                     child: _CurrentLocationChip(label: currentLabel),
                   ),

@@ -148,24 +148,30 @@ class EventProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// "Use my location" - picks the nearest supported city to the given
-  /// point. A real GPS plugin can feed these coordinates later.
-  void useDeviceLocation({double? lat, double? lng}) {
-    if (lat == null || lng == null) {
-      // no real GPS available - fall back to the default city
-      setCityLocation(_currentCity);
-      return;
-    }
+  /// Simulated device fix used when no GPS plugin is bundled. Karachi is the
+  /// app's home city.
+  static const List<double> devicePosition = [24.8607, 67.0011];
 
-    _latitude = lat;
-    _longitude = lng;
+  /// "Use my location" - picks the nearest supported city to the given
+  /// point. A real GPS plugin can feed these coordinates later; until then we
+  /// fall back to [devicePosition].
+  ///
+  /// Passing the *currently selected* city here (as the Map screen used to)
+  /// made the button look broken, because it always snapped back to the same
+  /// place.
+  void useDeviceLocation({double? lat, double? lng}) {
+    final fixLat = lat ?? devicePosition[0];
+    final fixLng = lng ?? devicePosition[1];
+
+    _latitude = fixLat;
+    _longitude = fixLng;
     _usingDeviceLocation = true;
 
     String nearest = _currentCity;
     double smallest = double.infinity;
 
     cityCoordinates.forEach((name, coords) {
-      final d = (coords[0] - lat).abs() + (coords[1] - lng).abs();
+      final d = (coords[0] - fixLat).abs() + (coords[1] - fixLng).abs();
       if (d < smallest) {
         smallest = d;
         nearest = name;
@@ -174,6 +180,15 @@ class EventProvider extends ChangeNotifier {
 
     _currentCity = nearest;
     notifyListeners();
+  }
+
+  /// Re-centres the map on the device location and refreshes every
+  /// location-aware list. Returns the city that was resolved.
+  Future<String> recenterOnDeviceLocation() async {
+    useDeviceLocation();
+    await loadNearby(radiusKm: 2000);
+    await loadMapPins();
+    return _currentCity;
   }
 
   // ==================================================================

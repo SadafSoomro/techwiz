@@ -252,6 +252,198 @@ async function answerFromFaqs(message) {
 // ---------------------------------------------------------------------------
 
 /** True when an OpenAI-compatible endpoint has been configured. */
+// ---------------------------------------------------------------------------
+// tier 2b: LIVE EVENTS (the `events` table)
+// ---------------------------------------------------------------------------
+
+/** Any question that is about the calendar / meetups / tickets. */
+const EVENT_INTENT =
+  /\b(event|events|convention|conventions|comic\s?con|meetup|meet\s?up|cosplay|screening|premiere|concert|tournament|workshop|expo|ticket|tickets|nearby|near me|happening|calendar|schedule|venue)\b/i;
+
+function formatEvent(row) {
+  const price =
+    Number(row.ticket_price) > 0
+      ? `${row.currency || "PKR"} ${Number(row.ticket_price).toLocaleString()}`
+      : "Free entry";
+
+  const where = row.venue_name ? `${row.city_name}, ${row.venue_name}` : row.city_name;
+  const when = row.start_time ? `${row.event_date} at ${row.start_time}` : row.event_date;
+
+  return `- ${row.title} - ${where} on ${when} (${price})`;
+}
+
+/**
+ * Answers with real rows from the `events` table: the next events overall,
+ * everything in a named city, and single categories such as cosplay meetups.
+ * Returns null when the question is not about events so the other tiers can
+ * answer it instead.
+ */
+async function answerFromEvents(message) {
+  const text = String(message || "");
+  if (!EVENT_INTENT.test(text)) return null;
+
+  const lower = text.toLowerCase();
+
+  const cityRows = await all(
+    `SELECT DISTINCT city_name FROM events WHERE status = 'upcoming' ORDER BY city_name`
+  );
+  const askedCity =
+    cityRows
+      .map((row) => row.city_name)
+      .find((city) => lower.includes(String(city).toLowerCase())) || null;
+
+  const categoryRow = await get(
+    `SELECT category FROM events
+      WHERE status = 'upcoming' AND LOWER(?) LIKE '%' || LOWER(category) || '%'
+      LIMIT 1`,
+    [text]
+  );
+  const askedCategory = categoryRow ? categoryRow.category : null;
+
+  const rows = await all(
+    `SELECT title, city_name, venue_name, event_date, start_time, ticket_price, currency, category
+       FROM events
+      WHERE status = 'upcoming'
+        AND (? IS NULL OR city_name = ?)
+        AND (? IS NULL OR category = ?)
+      ORDER BY event_date ASC
+      LIMIT 5`,
+    [askedCity, askedCity, askedCategory, askedCategory]
+  );
+
+  if (rows.length === 0) {
+    // Nothing matched: only speak up if they named a city/category, otherwise
+    // let the FAQ / external tiers try.
+    if (!askedCity && !askedCategory) return null;
+
+    return {
+      reply:
+        "I could not find an upcoming event matching that. Open the Events tab to browse by city, " +
+        "category and date - the Map screen shows every event as a pin and the Calendar view lays " +
+        "them out by month.",
+      topic: "Events",
+      source: "events",
+    };
+  }
+
+  const total = await get(
+    `SELECT COUNT(*) AS total FROM events WHERE status = 'upcoming'`
+  );
+
+  const scope = askedCity ? ` in ${askedCity}` : "";
+  const kind = askedCategory ? ` (${askedCategory})` : "";
+
+  const header =
+    askedCity || askedCategory
+      ? `Here is what is coming up${scope}${kind}:`
+      : `Here are the next ${rows.length} events on Fandom Verse (${total ? total.total : rows.length} upcoming in total):`;
+
+  return {
+    reply:
+      `${header}\n${rows.map(formatEvent).join("\n")}\n\n` +
+      "Tap an event for the full details, ticket price and its map pin, or press Interested to save it.",
+    topic: "Events",
+    source: "events",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// tier 2c: IN-APP GUIDE ("where do I find ... in the app?")
+// ---------------------------------------------------------------------------
+
+const APP_GUIDE = [
+  {
+    match: /\b(wishlist|wish list|save for later|favourites?|favorites?)\b/i,
+    reply:
+      "Your wishlist lives in the Shop tab - the heart icon in the header, or Profile > Wishlist. " +
+      "Tap the heart on any product to add or remove it; when a saved item drops in price you get a " +
+      "price-drop notification.",
+  },
+  {
+    match: /\b(cart|basket|checkout|check out|final bill|my orders|order history|purchase history)\b/i,
+    reply:
+      "Add a product from its product page, then open Shop > Cart (the bag icon) to change quantities " +
+      "and press Check Out to see the bill. Confirmed orders appear under Profile > My Orders. " +
+      "Checkout is a simulation - no real payment, shipping or delivery happens.",
+  },
+  {
+    match: /\b(bookmarks?|saved|offline|download)\b/i,
+    reply:
+      "Use the bookmark icon on any article, post or gallery item to save it. Everything you save lands " +
+      "in the Saved tab of the bottom bar, and it stays readable offline because the app caches it locally.",
+  },
+  {
+    match: /\b(badges?|level|xp|points|streak|achievements?)\b/i,
+    reply:
+      "Your level, points, streak and badges are on Profile > Badges. Finishing tasks (Profile > Tasks) " +
+      "and staying active levels you up, and earned badges are shown on your profile.",
+  },
+  {
+    match: /\b(fandoms?|interests?|categor(y|ies)|preferences?)\b/i,
+    reply:
+      "You pick your interests while signing up, and you can change them any time from Profile > My Fandoms " +
+      "(or Home > Your Fandoms > Edit). Tick the extra fandoms you want and press Save Fandoms - your Home " +
+      "feed, Explore rail and event suggestions update right away.",
+  },
+  {
+    match: /\b(glossary|terminology|beginner|new to fandoms?|jargon)\b/i,
+    reply:
+      "New here? Open any fandom's hub and switch to the Glossary tab - it explains the popular terminology. " +
+      "Home > Trending Fandoms > See all gets you to the hub list.",
+  },
+  {
+    match: /\b(search|find|look up|filters?)\b/i,
+    reply:
+      "Tap the search bar on Home, or the magnifier in Explore, and type any fandom, character, product or " +
+      "event. Results can be filtered by type and city, and the trending chips are one-tap shortcuts.",
+  },
+  {
+    match: /\b(community|discussions?|posts?|threads?|follow(ing)?|comment)\b/i,
+    reply:
+      "The community feed is in Discover > Discussions. Read threads, like and comment, follow other fans, " +
+      "and start your own post with the + button.",
+  },
+  {
+    match: /\b(map|gps|location|near me)\b/i,
+    reply:
+      "Open Events > Map to see every upcoming event as a pin. The crosshair button detects your nearest " +
+      "city, tapping a pin opens a quick card, and the chips at the top filter the map by city or category.",
+  },
+  {
+    match: /\b(calendar|month view|which day|schedule)\b/i,
+    reply:
+      "Events > Calendar lays every event out by month with dots on the busy days. Pick a day to see what is " +
+      "on and filter by city or category from the same screen.",
+  },
+  {
+    match: /\b(notifications?|alerts?|bell)\b/i,
+    reply:
+      "The bell in the Home header holds your notifications - the badge shows how many are unread. Open it to " +
+      "read them, mark all as read, or delete the ones you are done with.",
+  },
+  {
+    match: /\b(contact|support|complain|enquir(y|ies)|inquir(y|ies)|feedback)\b/i,
+    reply:
+      "You can reach the Fandom Verse team from Profile > Contact Us - it has an enquiry form, our email and " +
+      "the team's office location. Profile > About Us introduces everyone behind the app.",
+  },
+  {
+    match: /\b(profile|bio|avatar|edit profile|account|password|settings|log ?out)\b/i,
+    reply:
+      "Profile is the last tab in the bottom bar. Edit Profile changes your bio and avatar, My Fandoms handles " +
+      "interests, Badges shows achievements, and Settings has account options such as password and logout.",
+  },
+];
+
+function answerFromAppGuide(message) {
+  for (const entry of APP_GUIDE) {
+    if (entry.match.test(message)) {
+      return { reply: entry.reply, topic: "App Guide", source: "guide" };
+    }
+  }
+  return null;
+}
+
 export function isExternalAiConfigured() {
   return !!(process.env.AI_API_URL && process.env.AI_API_KEY);
 }
@@ -360,7 +552,11 @@ function smallTalk(message) {
 function fallbackReply() {
   return {
     reply:
-      "I am not sure about that one yet. I am strongest on fandom lore and characters, anime and manga recommendations, cosplay and figure care, and anything about the Fandom Verse shop - prices, stock, wishlist, cart and orders.\n\nTry asking something like \"Who is Luffy?\", \"Suggestions for anime?\" or \"How do I care for my figure?\".",
+      "I am not sure about that one yet. I am strongest on fandom lore and characters, anime and manga " +
+      "recommendations, cosplay and figure care, the Fandom Verse shop (prices, stock, wishlist, cart and " +
+      "orders), the event calendar, and how to find anything inside the app.\n\n" +
+      'Try asking "Who is Luffy?", "What events are coming up in Karachi?", ' +
+      '"How do I care for my figure?" or "Where do I find my wishlist?".',
     topic: "Unknown",
     source: "fallback",
   };
@@ -391,12 +587,21 @@ export const getSuggestions = asyncHandler(async (req, res) => {
   );
 
   const byQuestion = new Map(rows.map((row) => [row.question, row]));
-  const suggestions = preferred
+  const faqSuggestions = preferred
     .filter((question) => byQuestion.has(question))
     .map((question) => ({
       question,
       topic: byQuestion.get(question).topic,
     }));
+
+  // Chips served by the live event tier and the in-app guide rather than the
+  // FAQ table, so they are always offered as a starting point.
+  const dynamic = [
+    { question: 'What events are coming up in Karachi?', topic: 'Events' },
+    { question: 'Where do I find my wishlist?', topic: 'App Guide' },
+  ];
+
+  const suggestions = [...dynamic, ...faqSuggestions];
 
   if (suggestions.length < 6) {
     const extra = await all(
@@ -412,6 +617,15 @@ export const getSuggestions = asyncHandler(async (req, res) => {
     `SELECT topic, COUNT(*) AS count FROM ai_faqs
       WHERE topic IS NOT NULL
       GROUP BY topic ORDER BY count DESC`
+  );
+
+  // The event and in-app-guide tiers are not FAQ rows, so add them explicitly.
+  const eventCount = await get(
+    `SELECT COUNT(*) AS total FROM events WHERE status = 'upcoming'`
+  );
+  topics.unshift(
+    { topic: 'Events', count: eventCount ? eventCount.total : 0 },
+    { topic: 'App Guide', count: APP_GUIDE.length }
   );
 
   const payload = {
@@ -469,14 +683,23 @@ export const chat = asyncHandler(async (req, res) => {
       message
     );
 
-  const [catalogueAnswer, faqAnswer] = await Promise.all([
+  const [catalogueAnswer, faqAnswer, eventsAnswer] = await Promise.all([
     answerFromCatalogue(message),
     answerFromFaqs(message),
+    answerFromEvents(message),
   ]);
 
-  let answer = wantsStoreInfo
-    ? catalogueAnswer || faqAnswer
-    : faqAnswer || catalogueAnswer;
+  const guideAnswer = answerFromAppGuide(message);
+
+  let answer;
+  if (wantsStoreInfo) {
+    answer = catalogueAnswer || faqAnswer || eventsAnswer || guideAnswer;
+  } else if (eventsAnswer) {
+    // A calendar question always gets the live event rows, never a canned FAQ.
+    answer = eventsAnswer;
+  } else {
+    answer = faqAnswer || catalogueAnswer || guideAnswer;
+  }
 
   // ---- tier 3: external AI ----
   if (!answer) answer = await answerFromExternalAi(message, history);
@@ -507,7 +730,7 @@ export const chat = asyncHandler(async (req, res) => {
         ORDER BY RANDOM() LIMIT 3`,
       [answer.topic, message]
     );
-  } else if (answer.source === "fallback") {
+  } else if (answer.source === "fallback" || answer.source === "events" || answer.source === "guide") {
     followUps = await all(`SELECT question FROM ai_faqs ORDER BY RANDOM() LIMIT 3`);
   }
 

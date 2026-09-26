@@ -18,28 +18,107 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="FANDOM VERSE - Your Fandom. All in One Place.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="frontend">
+  <meta name="apple-mobile-web-app-title" content="FANDOM VERSE">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>frontend</title>
+  <title>FANDOM VERSE</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Matches the app background so the browser never flashes white while the
+       Flutter bundle boots. -->
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #0B0F19;
+      overflow: hidden;
+    }
+
+    /* ---------------------------------------------------------------
+       Boot splash: the FANDOM VERSE key art is shown together with a
+       loading bar while the Flutter engine starts, then faded out by
+       web/flutter_bootstrap.js once the app has painted.
+       --------------------------------------------------------------- */
+    #fv-boot-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background-color: #05070d;
+      transition: opacity 0.6s ease;
+    }
+
+    #fv-boot-splash .fv-art {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+    }
+
+    #fv-boot-splash .fv-loading {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 8%;
+      text-align: center;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+
+    #fv-boot-splash .fv-bar {
+      width: 150px;
+      height: 4px;
+      margin: 0 auto;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.18);
+      overflow: hidden;
+    }
+
+    #fv-boot-splash .fv-bar span {
+      display: block;
+      width: 42%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #7c3aed, #a855f7, #ec4899);
+      animation: fv-slide 1.15s ease-in-out infinite;
+    }
+
+    #fv-boot-splash .fv-text {
+      margin: 12px 0 0;
+      color: #94a3b8;
+      font-size: 12.5px;
+      font-weight: 500;
+      letter-spacing: 0.4px;
+    }
+
+    @keyframes fv-slide {
+      0%   { transform: translateX(-105%); }
+      100% { transform: translateX(340%); }
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <!-- Branded boot splash - artwork + loading bar, removed by
+       web/flutter_bootstrap.js after the first Flutter frame. -->
+  <div id="fv-boot-splash">
+    <img class="fv-art" src="assets/assets/images/splash_bg.png" alt="FANDOM VERSE" />
+    <div class="fv-loading">
+      <div class="fv-bar"><span></span></div>
+      <p class="fv-text">Loading your fandom universe...</p>
+    </div>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
+  <!--
+    The bootstrap script is customised in web/flutter_bootstrap.js so the
+    splash above stays on screen until the app is really ready.
   -->
   <script src="flutter_bootstrap.js" async></script>
 </body>

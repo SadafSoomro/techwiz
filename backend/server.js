@@ -5,6 +5,7 @@ import express from "express";
 import cors from "cors";
 import authRoutes from "./Routes/authroute.js";
 import userRoutes from "./Routes/userroute.js";
+import contactRoutes from "./Routes/contactroute.js";
 import searchRoutes from "./Routes/searchroute.js";
 import postRoutes from "./Routes/postroute.js";
 import communityRoutes from "./Routes/communityroute.js";
@@ -57,6 +58,7 @@ setInterval(() => cache.purgeExpired(), 10 * 60 * 1000);
 // ----------------------------- Member 1 -----------------------------
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/contact", contactRoutes); // Contact Us: enquiry form + office location
 app.use("/api/profile", profileRoutes); // profile, fandoms, badges, invite, tasks, home
 
 // ----------------------------- Member 2 -----------------------------
@@ -82,6 +84,7 @@ app.get("/api/health", (req, res) => {
     modules: [
       "auth",
       "users",
+      "contact",
       "profile",
       "content",
       "search",

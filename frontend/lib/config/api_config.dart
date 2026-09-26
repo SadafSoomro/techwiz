@@ -28,6 +28,9 @@ class ApiConfig {
   static String get googleLoginUrl => '$baseUrl/auth/google';
   static String get getUsersUrl => '$baseUrl/users/getall';
 
+  // General - Contact Us (enquiry form + office location)
+  static String get contactUrl => '$baseUrl/contact';
+
   // =====================================================================
   // MEMBER 3 - Search & Community endpoints
   // =====================================================================

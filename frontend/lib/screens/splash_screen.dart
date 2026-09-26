@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/fandom_logo.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 
@@ -13,24 +14,17 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _fadeAnimation;
-
+class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
-    );
-
-    _controller.forward();
-    _navigateNext();
+    // Restoring the session notifies the providers, so it must not run during
+    // the build phase - otherwise Flutter throws "setState() called during
+    // build". Wait for the first frame of the splash artwork, then start.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _navigateNext();
+    });
   }
 
   Future<void> _navigateNext() async {
@@ -126,32 +120,30 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Exact User-Provided Full HD Splash Screen Artwork
+          // Exact User-Provided Full HD Splash Screen Artwork.
+          //
+          // It is painted at full opacity from the very first frame (no
+          // fade-in) so the FANDOM VERSE key art is always what the user sees
+          // while the session and the dashboard load behind it.
           Positioned.fill(
-            child: FadeTransition(
-              opacity: _fadeAnimation,
-              child: Image.asset(
-                'assets/images/splash_bg.png',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    decoration: const BoxDecoration(
-                      gradient: AppTheme.backgroundGradient,
-                    ),
-                  );
-                },
-              ),
+            child: Image.asset(
+              'assets/images/splash_bg.png',
+              fit: BoxFit.cover,
+              alignment: Alignment.center,
+              gaplessPlayback: true,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  decoration: const BoxDecoration(
+                    gradient: AppTheme.backgroundGradient,
+                  ),
+                  child: const Center(child: FandomLogoWidget(height: 96)),
+                );
+              },
             ),
           ),
 

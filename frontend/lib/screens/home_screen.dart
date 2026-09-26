@@ -14,11 +14,13 @@ import '../theme/app_theme.dart';
 import '../theme/content_theme.dart';
 import '../theme/event_theme.dart';
 import '../theme/profile_theme.dart';
+import '../widgets/ai_agent_button.dart';
 import '../widgets/animated_widgets.dart';
 import '../widgets/app_image.dart';
 import '../widgets/content_widgets.dart';
 import '../widgets/fandom_logo.dart';
 import '../widgets/profile_widgets.dart';
+import 'ai_helper_screen.dart';
 import 'bookmarks_screen.dart';
 import 'discussions_screen.dart';
 import 'discover_screen.dart';
@@ -99,36 +101,63 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _currentIndex = index);
   }
 
+  /// Opens the AI Fan Helper from the cartoon companion that floats above the
+  /// bottom bar.
+  Future<void> _openAiHelper() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AiHelperScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       body: Container(
         decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
-        child: SafeArea(
-          child: IndexedStack(
-            index: _currentIndex,
-            children: [
-              _HomeDashboardTab(onOpenTab: _openTab),
-              const DiscoverScreen(embedded: true),
-              const EventsScreen(embedded: true),
-              const ShopScreen(embedded: true),
-              const BookmarksScreen(embedded: true),
-              const ProfileScreen(embedded: true),
-            ],
-          ),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: SafeArea(
+                child: IndexedStack(
+                  index: _currentIndex,
+                  children: [
+                    _HomeDashboardTab(onOpenTab: _openTab),
+                    const DiscoverScreen(embedded: true),
+                    const EventsScreen(embedded: true),
+                    const ShopScreen(embedded: true),
+                    const BookmarksScreen(embedded: true),
+                    const ProfileScreen(embedded: true),
+                  ],
+                ),
+              ),
+            ),
+
+            // MEMBER 5 - AI Fan Helper: its own little companion, floating
+            // just above the bottom bar on the left, kept apart from the tabs.
+            Positioned(
+              left: 14,
+              bottom: 12,
+              child: AiAgentButton(onTap: _openAiHelper),
+            ),
+          ],
         ),
       ),
-      bottomNavigationBar: _FandomNavBar(
-        currentIndex: _currentIndex,
-        onSelect: _openTab,
+      // The gradient is repeated behind the floating bar so the rounded corners
+      // never reveal a flat strip of the scaffold colour.
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
+        child: _FandomNavBar(
+          currentIndex: _currentIndex,
+          onSelect: _openTab,
+        ),
       ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// animated bottom navigation
+// floating bottom navigation
 // ---------------------------------------------------------------------------
 class _FandomNavBar extends StatelessWidget {
   const _FandomNavBar({required this.currentIndex, required this.onSelect});
@@ -136,86 +165,169 @@ class _FandomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onSelect;
 
-  static const List<({IconData icon, String label})> _items = [
-    (icon: Icons.home_rounded, label: 'Home'),
-    (icon: Icons.explore_rounded, label: 'Explore'),
-    (icon: Icons.event_rounded, label: 'Events'),
-    (icon: Icons.shopping_bag_rounded, label: 'Shop'),
-    (icon: Icons.bookmark_rounded, label: 'Saved'),
-    (icon: Icons.person_rounded, label: 'Profile'),
+  static const List<
+      ({IconData icon, IconData activeIcon, String label, Color accent})>
+      _items = [
+    (
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
+      label: 'Home',
+      accent: Color(0xFF6D8BFF),
+    ),
+    (
+      icon: Icons.explore_outlined,
+      activeIcon: Icons.explore_rounded,
+      label: 'Explore',
+      accent: Color(0xFFEC4899),
+    ),
+    (
+      icon: Icons.celebration_outlined,
+      activeIcon: Icons.celebration_rounded,
+      label: 'Events',
+      accent: Color(0xFFFBBF24),
+    ),
+    (
+      icon: Icons.shopping_bag_outlined,
+      activeIcon: Icons.shopping_bag_rounded,
+      label: 'Shop',
+      accent: Color(0xFFA855F7),
+    ),
+    (
+      icon: Icons.bookmark_border_rounded,
+      activeIcon: Icons.bookmark_rounded,
+      label: 'Saved',
+      accent: Color(0xFF06B6D4),
+    ),
+    (
+      icon: Icons.person_outline_rounded,
+      activeIcon: Icons.person_rounded,
+      label: 'Profile',
+      accent: Color(0xFF10B981),
+    ),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.07)),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 62,
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 9),
+        child: Container(
+          height: 64,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF1B2337), Color(0xFF111827)],
+            ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.55),
+                blurRadius: 22,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
           child: Row(
-            children: List.generate(_items.length, (index) {
-              final item = _items[index];
-              final selected = index == currentIndex;
-
-              return Expanded(
-                child: PressScale(
-                  pressedScale: 0.9,
+            children: List.generate(
+              _items.length,
+              (index) => Expanded(
+                child: _NavItem(
+                  icon: _items[index].icon,
+                  activeIcon: _items[index].activeIcon,
+                  label: _items[index].label,
+                  accent: _items[index].accent,
+                  selected: index == currentIndex,
                   onTap: () => onSelect(index),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 260),
-                        curve: Curves.easeOutCubic,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 5),
-                        decoration: BoxDecoration(
-                          gradient: selected
-                              ? ProfileTheme.buttonGradient
-                              : null,
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: selected
-                              ? [
-                                  BoxShadow(
-                                    color: ProfileTheme.primary
-                                        .withValues(alpha: 0.4),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Icon(
-                          item.icon,
-                          size: 19,
-                          color: selected ? Colors.white : AppTheme.textMuted,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        item.label,
-                        style: GoogleFonts.inter(
-                          fontSize: 9.5,
-                          fontWeight:
-                              selected ? FontWeight.w700 : FontWeight.w500,
-                          color: selected
-                              ? Colors.white
-                              : AppTheme.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
-              );
-            }),
+              ),
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A single tab: the active one lifts into a glowing gradient capsule, the
+/// others stay as quiet outlined glyphs.
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.accent,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final Color accent;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressScale(
+      pressedScale: 0.85,
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AnimatedScale(
+            scale: selected ? 1.08 : 1,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutBack,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOutCubic,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              decoration: BoxDecoration(
+                gradient: selected
+                    ? LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          accent,
+                          Color.lerp(accent, Colors.white, 0.28)!,
+                        ],
+                      )
+                    : null,
+                borderRadius: BorderRadius.circular(15),
+                boxShadow: selected
+                    ? [
+                        BoxShadow(
+                          color: accent.withValues(alpha: 0.55),
+                          blurRadius: 14,
+                          offset: const Offset(0, 5),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: Icon(
+                selected ? activeIcon : icon,
+                size: 20,
+                color: selected ? Colors.white : AppTheme.textMuted,
+              ),
+            ),
+          ),
+          const SizedBox(height: 3),
+          AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            style: GoogleFonts.inter(
+              fontSize: 9.5,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: selected ? Colors.white : AppTheme.textMuted,
+              letterSpacing: 0.1,
+            ),
+            child: Text(label, maxLines: 1, overflow: TextOverflow.clip),
+          ),
+        ],
       ),
     );
   }
