@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
+
+import '../services/admin_storage.dart';
 import '../services/api_service.dart';
 import '../services/auth_storage.dart';
 import '../services/google_auth_service.dart';
 
-enum AuthStatus { initial, authenticating, authenticated, unauthenticated, error }
+enum AuthStatus {
+  initial,
+  authenticating,
+  authenticated,
+  unauthenticated,
+  error,
+}
 
 class AuthProvider extends ChangeNotifier {
   Map<String, dynamic>? _user;
@@ -16,7 +24,8 @@ class AuthProvider extends ChangeNotifier {
   String? get token => _token;
   AuthStatus get status => _status;
   bool get isLoading => _isLoading;
-  bool get isAuthenticated => _status == AuthStatus.authenticated && _token != null;
+  bool get isAuthenticated =>
+      _status == AuthStatus.authenticated && _token != null;
   String? get errorMessage => _errorMessage;
 
   AuthProvider() {
@@ -43,6 +52,21 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The login screen is now the single door for both fans and administrators,
+  /// but the admin panel keeps its session under a different storage key
+  /// (AdminStorage) so the two never bleed into each other. Without this
+  /// mirror an admin would open the panel and every admin API would 401.
+  Future<void> _syncAdminSession() async {
+    if (_token == null || _token!.isEmpty) return;
+
+    final role = (_user?['role'] ?? 'user').toString().toLowerCase();
+    if (role == 'admin') {
+      await AdminStorage.saveSession(_token!, _user);
+    } else {
+      await AdminStorage.clearSession();
+    }
+  }
+
   // Check saved token on app start
   Future<bool> checkAuthStatus() async {
     _setLoading(true);
@@ -52,6 +76,7 @@ class AuthProvider extends ChangeNotifier {
         _token = await AuthStorage.getToken();
         _user = await AuthStorage.getUser();
         _status = AuthStatus.authenticated;
+        await _syncAdminSession();
         _setLoading(false);
         return true;
       } else {
@@ -80,6 +105,7 @@ class AuthProvider extends ChangeNotifier {
       _token = response.data!['token'];
       _user = response.data!['user'];
       await AuthStorage.saveSession(_token ?? '', _user);
+      await _syncAdminSession();
       _status = AuthStatus.authenticated;
     } else {
       _setError(response.message);
@@ -120,10 +146,7 @@ class AuthProvider extends ChangeNotifier {
     _setLoading(true);
     _errorMessage = null;
 
-    final response = await ApiService.verifyEmail(
-      email: email,
-      code: code,
-    );
+    final response = await ApiService.verifyEmail(email: email, code: code);
 
     if (!response.success) {
       _setError(response.message);
@@ -182,6 +205,7 @@ class AuthProvider extends ChangeNotifier {
       _token = response.data!['token'];
       _user = response.data!['user'];
       await AuthStorage.saveSession(_token ?? '', _user);
+      await _syncAdminSession();
       _status = AuthStatus.authenticated;
     } else if (!response.message.contains('cancelled')) {
       _setError(response.message);
@@ -208,6 +232,7 @@ class AuthProvider extends ChangeNotifier {
       _token = response.data!['token'];
       _user = response.data!['user'];
       await AuthStorage.saveSession(_token ?? '', _user);
+      await _syncAdminSession();
       _status = AuthStatus.authenticated;
     } else {
       _setError(response.message);
@@ -221,6 +246,7 @@ class AuthProvider extends ChangeNotifier {
   Future<void> logout() async {
     _setLoading(true);
     await AuthStorage.clearSession();
+    await AdminStorage.clearSession();
     await GoogleAuthService.signOut();
     _token = null;
     _user = null;

@@ -14,11 +14,13 @@ import profileRoutes from "./Routes/profileroute.js";
 import contentRoutes from "./Routes/contentroute.js";
 import shopRoutes from "./Routes/shoproute.js";
 import aiRoutes from "./Routes/airoute.js";
+import adminRoutes from "./Routes/adminroute.js";
 import { initCommunitySchema } from "./database/communitySchema.js";
 import { initEventsSchema } from "./database/eventsSchema.js";
 import { initContentSchema } from "./database/contentSchema.js";
 import { initProfileSchema } from "./database/profileSchema.js";
 import { initShopSchema } from "./database/shopSchema.js";
+import { initAdminSchema } from "./database/adminSchema.js";
 import cache from "./database/cache.js";
 
 const app = express();
@@ -51,6 +53,11 @@ initProfileSchema();
 // ---------------------------------------------------------------
 initShopSchema();
 
+// ---------------------------------------------------------------
+// Member 6 - Admin + Security (admin CRUD, logs, backup, settings)
+// ---------------------------------------------------------------
+initAdminSchema();
+
 // Drop expired cache rows on boot and every 10 minutes.
 cache.purgeExpired();
 setInterval(() => cache.purgeExpired(), 10 * 60 * 1000);
@@ -76,6 +83,9 @@ app.use("/api/events", eventRoutes);        // events, nearby, calendar, map, ti
 app.use("/api/shop", shopRoutes);          // catalogue, wishlist, cart, checkout, orders
 app.use("/api/ai", aiRoutes);              // AI Fan Helper chat + suggestions
 
+// ----------------------------- Member 6 -----------------------------
+app.use("/api/admin", adminRoutes);       // admin portal: CRUD, security, backup, logs
+
 // Health check
 app.get("/api/health", (req, res) => {
   res.json({
@@ -93,6 +103,7 @@ app.get("/api/health", (req, res) => {
       "events",
       "shop",
       "ai",
+      "admin",
     ],
   });
 });
@@ -111,4 +122,5 @@ app.listen(PORT, () => {
   console.log("Member 3 API: /api/search, /api/posts, /api/community");
   console.log("Member 4 API: /api/events");
   console.log("Member 5 API: /api/shop, /api/ai");
+  console.log("Member 6 API: /api/admin (admin portal)");
 });

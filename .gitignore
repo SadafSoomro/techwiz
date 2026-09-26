@@ -14,6 +14,7 @@ backend/tests/events_report.txt
 backend/tests/content_report.txt
 backend/tests/profile_report.txt
 backend/tests/shop_report.txt
+backend/backups/
 
 # Flutter analysis / build check scratch output
 frontend/analyze*.txt

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/fandom_logo.dart';
+import 'admin/admin_shell.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 
@@ -40,7 +42,14 @@ class _SplashScreenState extends State<SplashScreen> {
     // 1. Restore the saved session while the artwork is on screen.
     await authProvider.checkAuthStatus();
 
-    if (authProvider.isAuthenticated) {
+    // An administrator goes straight into the Member 6 panel - preparing the
+    // fan Home dashboard for them would be wasted work.
+    final isAdmin =
+        authProvider.isAuthenticated &&
+        (authProvider.user?['role'] ?? 'user').toString().toLowerCase() ==
+            'admin';
+
+    if (authProvider.isAuthenticated && !isAdmin) {
       // 2. Load the dashboard aggregate BEFORE navigating, so the Home screen
       //    is fully populated the moment it appears (no shimmer / empty state).
       await _prepareHome(profileProvider);
@@ -54,14 +63,12 @@ class _SplashScreenState extends State<SplashScreen> {
     await minimumDisplay;
     if (!mounted) return;
 
-    if (authProvider.isAuthenticated) {
-      Navigator.of(context).pushReplacement(
-        _readyRoute(const HomeScreen()),
-      );
+    if (isAdmin) {
+      Navigator.of(context).pushReplacement(_readyRoute(const AdminShell()));
+    } else if (authProvider.isAuthenticated) {
+      Navigator.of(context).pushReplacement(_readyRoute(const HomeScreen()));
     } else {
-      Navigator.of(context).pushReplacement(
-        _readyRoute(const LoginScreen()),
-      );
+      Navigator.of(context).pushReplacement(_readyRoute(const LoginScreen()));
     }
   }
 
@@ -69,9 +76,7 @@ class _SplashScreenState extends State<SplashScreen> {
   /// splash hostage - it is capped and errors are swallowed.
   Future<void> _prepareHome(ProfileProvider profileProvider) async {
     try {
-      await profileProvider
-          .loadDashboard()
-          .timeout(const Duration(seconds: 8));
+      await profileProvider.loadDashboard().timeout(const Duration(seconds: 8));
     } catch (_) {
       // The Home screen shows its own error/empty state if this fails.
     }
@@ -86,8 +91,10 @@ class _SplashScreenState extends State<SplashScreen> {
 
     for (final path in assets) {
       try {
-        await precacheImage(AssetImage(path), context)
-            .timeout(const Duration(seconds: 3));
+        await precacheImage(
+          AssetImage(path),
+          context,
+        ).timeout(const Duration(seconds: 3));
       } catch (_) {
         // A missing asset must never block the splash.
       }
@@ -164,7 +171,9 @@ class _SplashScreenState extends State<SplashScreen> {
                   borderRadius: BorderRadius.circular(10),
                   child: const LinearProgressIndicator(
                     backgroundColor: Colors.transparent,
-                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFA855F7)),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Color(0xFFA855F7),
+                    ),
                   ),
                 ),
               ),

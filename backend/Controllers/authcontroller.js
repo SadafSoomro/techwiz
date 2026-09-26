@@ -18,8 +18,9 @@ export const register = async (req, res) => {
     ).toString();
 
     db.run(
-      `INSERT INTO users (name,email,password,verificationCode)
-       VALUES (?,?,?,?)`,
+      `INSERT INTO users
+         (name, email, password, verificationCode, role, is_active, created_at, last_active_at)
+       VALUES (?,?,?,?,'user',1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)`,
       [name, email, hashedPassword, verificationCode],
       async function (err) {
         if (err) {
@@ -121,6 +122,13 @@ export const login = (req, res) => {
         });
       }
 
+      // A soft-banned account keeps its data but can no longer sign in.
+      if (user.is_active === 0) {
+        return res.status(403).json({
+          message: "Your account has been deactivated. Please contact support.",
+        });
+      }
+
       if (user.verified === 0) {
         return res.status(403).json({
           message: "Please verify your email first",
@@ -138,15 +146,23 @@ export const login = (req, res) => {
         });
       }
 
+      const role = String(user.role || "user").toLowerCase();
+
       const token = jwt.sign(
         {
           id: user.id,
           email: user.email,
+          role,
         },
         process.env.JWT_SECRET,
         {
           expiresIn: "7d",
         }
+      );
+
+      db.run(
+        `UPDATE users SET last_login_at = CURRENT_TIMESTAMP, last_active_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [user.id]
       );
 
       res.json({
@@ -156,6 +172,7 @@ export const login = (req, res) => {
           id: user.id,
           name: user.name,
           email: user.email,
+          role,
         },
       });
     }
@@ -292,10 +309,21 @@ export const googleLogin = async (req, res) => {
 
       if (user) {
         // User exists -> mark verified = 1 if not already
+
+        // A deactivated account must not be able to slip back in through
+        // Google after being blocked in the admin panel.
+        if (user.is_active === 0) {
+          return res.status(403).json({
+            message: "Your account has been deactivated. Please contact support.",
+          });
+        }
+
         db.run(`UPDATE users SET verified = 1 WHERE email = ?`, [email]);
 
+        const role = String(user.role || "user").toLowerCase();
+
         const token = jwt.sign(
-          { id: user.id, email: user.email },
+          { id: user.id, email: user.email, role },
           process.env.JWT_SECRET,
           { expiresIn: "7d" }
         );
@@ -307,6 +335,7 @@ export const googleLogin = async (req, res) => {
             id: user.id,
             name: user.name || name || "Google User",
             email: user.email,
+            role,
           },
         });
       } else {
@@ -333,6 +362,7 @@ export const googleLogin = async (req, res) => {
                 id: this.lastID,
                 name: userName,
                 email,
+                role: "user",
               },
             });
           }

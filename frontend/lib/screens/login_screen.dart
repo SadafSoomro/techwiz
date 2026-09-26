@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/animated_widgets.dart';
 import '../widgets/app_alert.dart';
 import '../widgets/fandom_logo.dart';
 import '../widgets/social_buttons.dart';
+import 'admin/admin_shell.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
 import 'signup_screen.dart';
@@ -45,6 +47,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (response.success && authProvider.isAuthenticated) {
+      // A `role` of admin skips the fan experience entirely and opens the
+      // Member 6 admin panel instead of the Home screen.
+      final isAdmin =
+          (authProvider.user?['role'] ?? 'user').toString().toLowerCase() ==
+          'admin';
+
       await showSuccessAlert(
         context,
         response.message,
@@ -53,7 +61,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(
+          builder: (_) => isAdmin ? const AdminShell() : const HomeScreen(),
+        ),
       );
     } else {
       if (response.message.toLowerCase().contains('verify your email')) {
@@ -66,7 +76,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => VerifyEmailScreen(email: _emailController.text.trim()),
+            builder: (_) =>
+                VerifyEmailScreen(email: _emailController.text.trim()),
           ),
         );
       } else {
@@ -82,6 +93,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (response.success && authProvider.isAuthenticated) {
+      // Same rule as the email/password form: an admin account opens the
+      // Member 6 panel, everyone else goes to the fan Home screen.
+      final isAdmin =
+          (authProvider.user?['role'] ?? 'user').toString().toLowerCase() ==
+          'admin';
+
       await showSuccessAlert(
         context,
         response.message,
@@ -90,7 +107,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
 
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(
+          builder: (_) => isAdmin ? const AdminShell() : const HomeScreen(),
+        ),
       );
     } else {
       if (response.message.contains('cancelled')) return;
@@ -120,7 +139,10 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             const GoogleLogoWidget(size: 26),
             const SizedBox(width: 10),
-            const Text('Google Sign In', style: TextStyle(color: Colors.white, fontSize: 18)),
+            const Text(
+              'Google Sign In',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
           ],
         ),
         content: Column(
@@ -147,7 +169,10 @@ class _LoginScreenState extends State<LoginScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: AppTheme.textSecondary),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -156,8 +181,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
               Navigator.of(dialogContext).pop();
 
-              final authProvider =
-                  Provider.of<AuthProvider>(context, listen: false);
+              final authProvider = Provider.of<AuthProvider>(
+                context,
+                listen: false,
+              );
               final res = await authProvider.loginWithGoogleEmail(email: email);
 
               if (!mounted) return;
@@ -182,8 +209,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 );
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
-            child: const Text('Continue', style: TextStyle(color: Colors.white)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primaryColor,
+            ),
+            child: const Text(
+              'Continue',
+              style: TextStyle(color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -199,9 +231,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Container(
         width: size.width,
         height: size.height,
-        decoration: const BoxDecoration(
-          gradient: AppTheme.backgroundGradient,
-        ),
+        decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -212,9 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   // Official FANDOM VERSE Logo (animated in)
                   FadeSlideIn(
-                    child: const Center(
-                      child: FandomLogoWidget(height: 120),
-                    ),
+                    child: const Center(child: FandomLogoWidget(height: 120)),
                   ),
                   const SizedBox(height: 16),
 
@@ -280,11 +308,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             prefixIcon: const Icon(Icons.lock_outline_rounded),
                             suffixIcon: IconButton(
                               icon: Icon(
-                                _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                _obscurePassword
+                                    ? Icons.visibility_off_outlined
+                                    : Icons.visibility_outlined,
                                 color: AppTheme.textSecondary,
                               ),
                               onPressed: () {
-                                setState(() => _obscurePassword = !_obscurePassword);
+                                setState(
+                                  () => _obscurePassword = !_obscurePassword,
+                                );
                               },
                             ),
                           ),
@@ -307,14 +339,17 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF7C3AED).withValues(alpha: 0.45),
+                                color: const Color(0xFF7C3AED)
+                                    .withValues(alpha: 0.45),
                                 blurRadius: 20,
                                 offset: const Offset(0, 6),
                               ),
                             ],
                           ),
                           child: ElevatedButton(
-                            onPressed: authProvider.isLoading ? null : _handleLogin,
+                            onPressed: authProvider.isLoading
+                                ? null
+                                : _handleLogin,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
@@ -328,7 +363,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                     height: 24,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2.5,
-                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
                                     ),
                                   )
                                 : Text(
@@ -377,7 +414,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Divider OR
                   Row(
                     children: [
-                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.12))),
+                      Expanded(
+                        child: Divider(
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                      ),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Text(
@@ -388,7 +429,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.12))),
+                      Expanded(
+                        child: Divider(
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                      ),
                     ],
                   ),
 
@@ -398,7 +443,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   SocialSignInButton(
                     text: 'Continue with Google',
                     icon: const GoogleLogoWidget(size: 22),
-                    onPressed: authProvider.isLoading ? null : _handleGoogleSignIn,
+                    onPressed: authProvider.isLoading
+                        ? null
+                        : _handleGoogleSignIn,
                   ),
 
                   const SizedBox(height: 28),
@@ -409,7 +456,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Text(
                         "Don't have an account? ",
-                        style: GoogleFonts.inter(color: AppTheme.textSecondary, fontSize: 14),
+                        style: GoogleFonts.inter(
+                          color: AppTheme.textSecondary,
+                          fontSize: 14,
+                        ),
                       ),
                       GestureDetector(
                         onTap: () {

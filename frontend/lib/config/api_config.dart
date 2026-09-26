@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiConfig {
@@ -84,7 +85,8 @@ class ApiConfig {
   static String get eventsCalendarUrl => '$baseUrl/events/calendar';
   static String get eventsSavedUrl => '$baseUrl/events/saved/mine';
   static String get eventsTicketsUrl => '$baseUrl/events/tickets/mine';
-  static String eventTicketUrl(int ticketId) => '$baseUrl/events/tickets/$ticketId';
+  static String eventTicketUrl(int ticketId) =>
+      '$baseUrl/events/tickets/$ticketId';
   static String eventDetailsUrl(int eventId) => '$baseUrl/events/$eventId';
   static String eventSaveUrl(int eventId) => '$baseUrl/events/$eventId/save';
   static String eventBookTicketUrl(int eventId) =>
@@ -119,7 +121,8 @@ class ApiConfig {
   static String get contentOfflineUrl => '$baseUrl/content/offline';
   static String contentDetailsUrl(int id) => '$baseUrl/content/$id';
   static String contentViewUrl(int id) => '$baseUrl/content/$id/view';
-  static String contentOfflineToggleUrl(int id) => '$baseUrl/content/$id/offline';
+  static String contentOfflineToggleUrl(int id) =>
+      '$baseUrl/content/$id/offline';
   static String contentLikeUrl(int id) => '$baseUrl/content/$id/like';
 
   // =====================================================================
@@ -157,4 +160,53 @@ class ApiConfig {
   static String get aiSuggestionsUrl => '$baseUrl/ai/suggestions';
   static String get aiTopicsUrl => '$baseUrl/ai/topics';
   static String get aiHistoryUrl => '$baseUrl/ai/history';
+
+  // =====================================================================
+  // MEMBER 6 - Admin Portal (admin CRUD, security, backup, logs)
+  // =====================================================================
+
+  /// Admin routes live under /admin, not /api/auth - a separate surface.
+  static String get adminBase => '$baseUrl/admin';
+
+  static String get adminLoginUrl => '$adminBase/login';
+  static String get adminMeUrl => '$adminBase/me';
+  static String get adminProfileUrl => '$adminBase/profile';
+  static String get adminDashboardUrl => '$adminBase/dashboard';
+
+  // Users
+  static String get adminUsersUrl => '$adminBase/users';
+  static String adminUserUrl(int id) => '$adminBase/users/$id';
+  static String adminUserStatusUrl(int id) => '$adminBase/users/$id/status';
+
+  // Content
+  static String get adminContentUrl => '$adminBase/content';
+  static String adminContentItemUrl(int id) => '$adminBase/content/$id';
+
+  // Events
+  static String get adminEventsUrl => '$adminBase/events';
+  static String adminEventUrl(int id) => '$adminBase/events/$id';
+
+  // Products
+  static String get adminProductsUrl => '$adminBase/products';
+  static String adminProductUrl(int id) => '$adminBase/products/$id';
+
+  // Categories
+  static String get adminCategoriesUrl => '$adminBase/categories';
+  static String adminCategoryUrl(int id) => '$adminBase/categories/$id';
+
+  // Notifications
+  static String get adminNotificationsUrl => '$adminBase/notifications';
+  static String adminNotificationUrl(int id) => '$adminBase/notifications/$id';
+
+  // Security
+  static String get adminSecurityUrl => '$adminBase/security';
+  static String get adminPasswordUrl => '$adminBase/security/password';
+  static String get adminSecuritySettingsUrl => '$adminBase/security/settings';
+
+  // Backup & database
+  static String get adminBackupUrl => '$adminBase/backup';
+  static String get adminBackupDownloadUrl => '$adminBase/backup/download';
+
+  // Logs & analytics
+  static String get adminLogsUrl => '$adminBase/logs';
 }
