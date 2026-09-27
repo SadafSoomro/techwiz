@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/shop_theme.dart';
+import 'app_image.dart' show decodeCacheWidth, resolveImageWidth;
 import 'shop_animated.dart';
 
 /// MEMBER 5 - Merchandise Store
@@ -41,34 +42,46 @@ class ProductImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final content = _buildContent();
+    // LayoutBuilder so a product tile is decoded at its real grid/tile width
+    // instead of at the full 1200 px catalogue artwork width.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cacheWidth = decodeCacheWidth(
+          context,
+          width: resolveImageWidth(constraints, width),
+          height: height,
+        );
+        final content = _buildContent(context, cacheWidth);
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: animated
-            ? ShineSweep(
-                opacity: 0.16,
-                period: const Duration(milliseconds: 3400),
-                child: content,
-              )
-            : content,
-      ),
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(radius),
+          child: SizedBox(
+            width: width,
+            height: height,
+            child: animated
+                ? ShineSweep(
+                    opacity: 0.16,
+                    period: const Duration(milliseconds: 3400),
+                    child: content,
+                  )
+                : content,
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildContent() {
+  Widget _buildContent(BuildContext context, int? cacheWidth) {
     if (ShopTheme.isAsset(imageUrl)) {
       return Image.asset(
         imageUrl!,
         fit: fit,
         width: width,
         height: height,
+        cacheWidth: cacheWidth,
         // A missing file falls back to the category gradient rather than
         // showing the red "asset not found" box.
-        errorBuilder: (context, error, stack) => _fallback(),
+        errorBuilder: (context, error, stack) => _fallback(context, cacheWidth),
       );
     }
 
@@ -78,19 +91,20 @@ class ProductImage extends StatelessWidget {
         fit: fit,
         width: width,
         height: height,
+        cacheWidth: cacheWidth,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
           return _placeholder(progress);
         },
-        errorBuilder: (context, error, stack) => _fallback(),
+        errorBuilder: (context, error, stack) => _fallback(context, cacheWidth),
       );
     }
 
-    return _fallback();
+    return _fallback(context, cacheWidth);
   }
 
   /// Handles an asset that is empty or failed to load.
-  Widget _fallback() {
+  Widget _fallback(BuildContext context, int? cacheWidth) {
     // Most bundled products exist, so try the generic catalogue artwork
     // before giving up on a picture entirely.
     return Image.asset(
@@ -98,6 +112,7 @@ class ProductImage extends StatelessWidget {
       fit: fit,
       width: width,
       height: height,
+      cacheWidth: cacheWidth,
       errorBuilder: (context, error, stack) => _gradientFallback(),
     );
   }

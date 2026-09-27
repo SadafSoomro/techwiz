@@ -45,135 +45,138 @@ class ProductGridCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ------------------------- image -------------------------
-            Stack(
-              children: [
-                ProductImage(
-                  imageUrl: product.imageUrl,
-                  category: product.category,
-                  width: double.infinity,
-                  height: 126,
-                  radius: 0,
-                ),
-
-                // discount badge
-                if (product.discountPercent > 0)
-                  Positioned(
-                    left: 8,
-                    top: 8,
-                    child: ShopDealBadge(percent: product.discountPercent),
-                  ),
-
-                // ribbon (only when there is no discount badge competing)
-                if (ribbon != null && product.discountPercent == 0)
-                  Positioned(
-                    left: 8,
-                    top: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        gradient: ShopTheme.primaryGradient,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        ribbon!,
-                        style: ShopTheme.label(size: 10).copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // wishlist heart
-                if (onWishlist != null)
-                  Positioned(
-                    right: 6,
-                    top: 6,
-                    child: ShopWishButton(
-                      active: product.isWishlisted,
-                      onTap: onWishlist,
-                      size: 15,
-                    ),
-                  ),
-
-                // "in cart" badge
-                if (product.quantityInCart > 0)
-                  Positioned(
-                    left: 8,
-                    bottom: 8,
-                    child: ShopTag(
-                      label: '${product.quantityInCart} in cart',
-                      icon: Icons.shopping_cart_rounded,
-                      color: ShopTheme.green,
-                    ),
-                  ),
-              ],
-            ),
-
-            // ------------------------- details -------------------------
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ------------------------- image -------------------------
+              Stack(
                 children: [
-                  Text(
-                    product.fandom.isEmpty ? product.category : product.fandom,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: ShopTheme.label(size: 10.5).copyWith(
-                      color: ShopTheme.categoryColor(product.category),
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.3,
+                  ProductImage(
+                    imageUrl: product.imageUrl,
+                    category: product.category,
+                    width: double.infinity,
+                    height: 115,
+                    radius: 0,
+                  ),
+
+                  // discount badge
+                  if (product.discountPercent > 0)
+                    Positioned(
+                      left: 8,
+                      top: 8,
+                      child: ShopDealBadge(percent: product.discountPercent),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: ShopTheme.body(
-                      size: 13,
-                      color: Colors.white,
-                    ).copyWith(fontWeight: FontWeight.w600, height: 1.25),
-                  ),
-                  const SizedBox(height: 6),
-                  ShopPriceRow(
-                    price: product.price,
-                    oldPrice: product.oldPrice,
-                    discountPercent: product.discountPercent,
-                    currency: product.currency,
-                    size: 15,
-                  ),
-                  const SizedBox(height: 7),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ShopRatingRow(
-                          rating: product.rating,
-                          ratingCount: product.ratingCount,
-                          showCount: false,
+
+                  // ribbon (only when there is no discount badge competing)
+                  if (ribbon != null && product.discountPercent == 0)
+                    Positioned(
+                      left: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          gradient: ShopTheme.primaryGradient,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          ribbon!,
+                          style: ShopTheme.label(size: 10).copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                      if (onAddToCart != null) _miniAddButton(context),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  ShopStockPill(
-                    label: product.stockLabel,
-                    stock: product.stock,
-                    isDigital: product.isDigital,
-                  ),
+                    ),
+
+                  // wishlist heart
+                  if (onWishlist != null)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: ShopWishButton(
+                        active: product.isWishlisted,
+                        onTap: onWishlist,
+                        size: 15,
+                      ),
+                    ),
+
+                  // "in cart" badge
+                  if (product.quantityInCart > 0)
+                    Positioned(
+                      left: 8,
+                      bottom: 8,
+                      child: ShopTag(
+                        label: '${product.quantityInCart} in cart',
+                        icon: Icons.shopping_cart_rounded,
+                        color: ShopTheme.green,
+                      ),
+                    ),
                 ],
               ),
-            ),
-          ],
+
+              // ------------------------- details -------------------------
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 9, 10, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      product.fandom.isEmpty ? product.category : product.fandom,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: ShopTheme.label(size: 10.5).copyWith(
+                        color: ShopTheme.categoryColor(product.category),
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: ShopTheme.body(
+                        size: 13,
+                        color: Colors.white,
+                      ).copyWith(fontWeight: FontWeight.w600, height: 1.25),
+                    ),
+                    const SizedBox(height: 6),
+                    ShopPriceRow(
+                      price: product.price,
+                      oldPrice: product.oldPrice,
+                      discountPercent: product.discountPercent,
+                      currency: product.currency,
+                      size: 15,
+                    ),
+                    const SizedBox(height: 7),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ShopRatingRow(
+                            rating: product.rating,
+                            ratingCount: product.ratingCount,
+                            showCount: false,
+                          ),
+                        ),
+                        if (onAddToCart != null) _miniAddButton(context),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ShopStockPill(
+                      label: product.stockLabel,
+                      stock: product.stock,
+                      isDigital: product.isDigital,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

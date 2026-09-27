@@ -598,14 +598,11 @@ class _OrderDetailSheet extends StatelessWidget {
                 controller: scrollController,
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 26),
                 children: [
+                  OrderTrackerWidget(order: order),
+                  const SizedBox(height: 16),
+
                   Row(
                     children: [
-                      ShopTag(
-                        label: order.statusLabel,
-                        icon: Icons.check_circle_rounded,
-                        color: ShopTheme.green,
-                      ),
-                      const SizedBox(width: 7),
                       ShopTag(
                         label: order.paymentMethod,
                         icon: Icons.payments_outlined,
@@ -789,6 +786,182 @@ class _OrderDetailSheet extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Visual Order Tracker Stepper Widget
+// ---------------------------------------------------------------------------
+class OrderTrackerWidget extends StatelessWidget {
+  final Order order;
+
+  const OrderTrackerWidget({super.key, required this.order});
+
+  static const List<({String title, IconData icon})> _steps = [
+    (title: 'Pending', icon: Icons.assignment_turned_in_rounded),
+    (title: 'Confirmed', icon: Icons.task_alt_rounded),
+    (title: 'Dispatched', icon: Icons.local_shipping_rounded),
+    (title: 'Delivered', icon: Icons.inventory_2_rounded),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final activeStep = order.trackingStepIndex;
+
+    Color stepColor(int index) {
+      if (index <= activeStep) {
+        if (order.status.toLowerCase() == 'delivered') return ShopTheme.green;
+        return ShopTheme.primary;
+      }
+      return Colors.white.withValues(alpha: 0.15);
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: ShopTheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: (order.status.toLowerCase() == 'delivered'
+                  ? ShopTheme.green
+                  : ShopTheme.primary)
+              .withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.alt_route_rounded,
+                size: 18,
+                color: ShopTheme.gold,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Live Order Tracking',
+                style: ShopTheme.title(size: 15),
+              ),
+              const Spacer(),
+              ShopTag(
+                label: order.trackingTitle,
+                color: activeStep == 3
+                    ? ShopTheme.green
+                    : activeStep == 0
+                        ? ShopTheme.gold
+                        : ShopTheme.primary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Stepper bar
+          Row(
+            children: List.generate(_steps.length, (index) {
+              final isDone = index <= activeStep;
+              final isCurrent = index == activeStep;
+              final color = stepColor(index);
+
+              return Expanded(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: isDone
+                                  ? color.withValues(alpha: 0.2)
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: color,
+                                width: isCurrent ? 2.2 : 1.4,
+                              ),
+                            ),
+                            child: Icon(
+                              _steps[index].icon,
+                              size: 17,
+                              color: isDone ? color : AppTheme.textMuted,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _steps[index].title,
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight:
+                                  isCurrent ? FontWeight.bold : FontWeight.w500,
+                              color: isDone ? Colors.white : AppTheme.textMuted,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (index < _steps.length - 1)
+                      Expanded(
+                        child: Container(
+                          height: 2.5,
+                          margin: const EdgeInsets.only(bottom: 18),
+                          color: index < activeStep
+                              ? stepColor(index)
+                              : Colors.white.withValues(alpha: 0.12),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }),
+          ),
+          const SizedBox(height: 14),
+
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.cardColor,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  activeStep == 3
+                      ? Icons.verified_rounded
+                      : Icons.schedule_rounded,
+                  size: 16,
+                  color: activeStep == 3 ? ShopTheme.green : ShopTheme.accent,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.trackingDescription,
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        order.estimatedDeliveryDate,
+                        style: ShopTheme.label(size: 10.5),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

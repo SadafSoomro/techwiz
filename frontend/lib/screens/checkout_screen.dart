@@ -32,12 +32,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   final _addressController = TextEditingController();
   final _noteController = TextEditingController();
 
-  String _paymentMethod = 'Cash on Delivery (simulated)';
+  final _cardNumberController = TextEditingController(text: '4242 4242 4242 4242');
+  final _cardExpiryController = TextEditingController(text: '12/28');
+  final _cardCvcController = TextEditingController(text: '123');
+
+  String _paymentMethod = 'Credit / Debit Card (Stripe)';
   bool _placing = false;
 
   static const List<String> _paymentMethods = [
-    'Cash on Delivery (simulated)',
-    'Card (simulated)',
+    'Credit / Debit Card (Stripe)',
+    'Cash on Delivery',
     'Wallet (simulated)',
   ];
 
@@ -75,6 +79,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _cityController.dispose();
     _addressController.dispose();
     _noteController.dispose();
+    _cardNumberController.dispose();
+    _cardExpiryController.dispose();
+    _cardCvcController.dispose();
     super.dispose();
   }
 
@@ -82,6 +89,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (!(_formKey.currentState?.validate() ?? true)) return;
 
     setState(() => _placing = true);
+
+    String? cardNumber;
+    int? expMonth;
+    int? expYear;
+    String? cvc;
+
+    if (_paymentMethod.contains('Card') || _paymentMethod.contains('Stripe')) {
+      cardNumber = _cardNumberController.text.replaceAll(' ', '').trim();
+      final expParts = _cardExpiryController.text.split('/');
+      if (expParts.length == 2) {
+        expMonth = int.tryParse(expParts[0].trim());
+        var yr = int.tryParse(expParts[1].trim());
+        if (yr != null && yr < 100) yr += 2000;
+        expYear = yr;
+      }
+      cvc = _cardCvcController.text.trim();
+    }
 
     final provider = context.read<ShopProvider>();
     final result = await provider.checkout(
@@ -91,6 +115,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       shippingAddress: _addressController.text.trim(),
       note: _noteController.text.trim(),
       paymentMethod: _paymentMethod,
+      cardNumber: cardNumber,
+      expMonth: expMonth,
+      expYear: expYear,
+      cvc: cvc,
     );
 
     if (!mounted) return;
@@ -351,7 +379,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             Text('Payment method', style: ShopTheme.title(size: 16)),
             const SizedBox(height: 4),
             Text(
-              'Every option is simulated for the project demo.',
+              'Select Credit / Debit Card to process payment with Stripe API.',
               style: ShopTheme.label(size: 11.5),
             ),
             const SizedBox(height: 10),
@@ -361,15 +389,142 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 child: _PaymentOption(
                   label: method,
                   selected: _paymentMethod == method,
-                  icon: method.startsWith('Cash')
-                      ? Icons.payments_outlined
-                      : method.startsWith('Card')
+                  icon: method.contains('Card') || method.contains('Stripe')
                       ? Icons.credit_card_rounded
+                      : method.startsWith('Cash')
+                      ? Icons.payments_outlined
                       : Icons.account_balance_wallet_outlined,
                   onTap: () => setState(() => _paymentMethod = method),
                 ),
               ),
             ),
+            if (_paymentMethod.contains('Card') || _paymentMethod.contains('Stripe')) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: ShopTheme.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: ShopTheme.primary.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.credit_card_rounded,
+                          color: ShopTheme.primary,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Stripe Card Details',
+                          style: ShopTheme.title(size: 14),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: ShopTheme.green.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: ShopTheme.green.withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.lock_outline_rounded,
+                                size: 11,
+                                color: ShopTheme.green,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Stripe Active',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: ShopTheme.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    _field(
+                      controller: _cardNumberController,
+                      label: 'Card Number',
+                      icon: Icons.credit_card_outlined,
+                      keyboardType: TextInputType.number,
+                      validator: (val) {
+                        if (!_paymentMethod.contains('Card') && !_paymentMethod.contains('Stripe')) return null;
+                        final v = (val ?? '').replaceAll(' ', '');
+                        if (v.length < 12) return 'Enter a valid card number';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _field(
+                            controller: _cardExpiryController,
+                            label: 'Expiry (MM/YY)',
+                            icon: Icons.calendar_today_outlined,
+                            keyboardType: TextInputType.datetime,
+                            validator: (val) {
+                              if (!_paymentMethod.contains('Card') && !_paymentMethod.contains('Stripe')) return null;
+                              final parts = (val ?? '').split('/');
+                              if (parts.length != 2) return 'Format MM/YY';
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _field(
+                            controller: _cardCvcController,
+                            label: 'CVC / CVV',
+                            icon: Icons.security_outlined,
+                            keyboardType: TextInputType.number,
+                            validator: (val) {
+                              if (!_paymentMethod.contains('Card') && !_paymentMethod.contains('Stripe')) return null;
+                              if ((val ?? '').trim().length < 3) return '3 digits';
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.verified_user_outlined,
+                          size: 13,
+                          color: ShopTheme.accent,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Processed securely via Stripe API using credentials in backend .env',
+                            style: ShopTheme.label(size: 10.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
 
             // --------------------------- note ---------------------------

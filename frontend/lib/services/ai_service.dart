@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/ai_models.dart';
 import '../models/json_utils.dart';
+import 'api_client.dart' show ApiClient;
 import 'auth_storage.dart';
 
 /// MEMBER 5 - AI Fan Helper
@@ -44,13 +45,19 @@ class AiService {
     late final http.Response response;
     switch (method) {
       case 'POST':
-        response = await http.post(uri, headers: headers, body: encoded);
+        response = await ApiClient.client
+            .post(uri, headers: headers, body: encoded)
+            .timeout(ApiClient.timeout);
         break;
       case 'DELETE':
-        response = await http.delete(uri, headers: headers);
+        response = await ApiClient.client
+            .delete(uri, headers: headers)
+            .timeout(ApiClient.timeout);
         break;
       default:
-        response = await http.get(uri, headers: headers);
+        response = await ApiClient.client
+            .get(uri, headers: headers)
+            .timeout(ApiClient.timeout);
     }
 
     if (response.body.isEmpty) {

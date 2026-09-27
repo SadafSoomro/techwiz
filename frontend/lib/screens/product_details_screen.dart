@@ -431,7 +431,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: 276,
+            height: 318,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               itemCount: _related.length,

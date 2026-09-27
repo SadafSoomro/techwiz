@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import 'app_image.dart' show decodeCacheWidth, resolveImageWidth;
 
 /// MEMBER 3 - Search & Community
 /// Banner artwork shown on community post cards and the post details screen.
@@ -78,76 +79,93 @@ class CommunityBannerImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final corners = borderRadius ?? BorderRadius.circular(14);
 
-    Widget content;
-    if (_isAsset) {
-      content = Image.asset(
-        _resolved,
-        height: height,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _fallback(),
-      );
-    } else if (_isRemote) {
-      content = Image.network(
-        _resolved,
-        height: height,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        loadingBuilder: (context, child, progress) =>
-            progress == null ? child : _fallback(),
-        errorBuilder: (_, _, _) => _fallback(),
-      );
-    } else {
-      content = _fallback();
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // The banner reports its real width here, so the decode is sized to
+        // what is actually painted rather than to the source artwork.
+        final cacheWidth = decodeCacheWidth(
+          context,
+          width: resolveImageWidth(constraints, null),
+          height: height,
+        );
 
-    return ClipRRect(
-      borderRadius: corners,
-      child: SizedBox(
-        height: height,
-        width: double.infinity,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            content,
-            // keeps overlaid chips readable
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.12),
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.45),
-                  ],
-                  stops: const [0.0, 0.5, 1.0],
-                ),
-              ),
-            ),
-            Positioned(
-              left: 10,
-              bottom: 8,
-              child: Row(
-                children: [
-                  const Icon(Icons.tag_rounded, size: 12, color: Colors.white70),
-                  const SizedBox(width: 4),
-                  Text(
-                    fandom.toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                      shadows: [Shadow(color: Colors.black54, blurRadius: 6)],
+        Widget content;
+        if (_isAsset) {
+          content = Image.asset(
+            _resolved,
+            height: height,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            cacheWidth: cacheWidth,
+            errorBuilder: (_, _, _) => _fallback(),
+          );
+        } else if (_isRemote) {
+          content = Image.network(
+            _resolved,
+            height: height,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            cacheWidth: cacheWidth,
+            loadingBuilder: (context, child, progress) =>
+                progress == null ? child : _fallback(),
+            errorBuilder: (_, _, _) => _fallback(),
+          );
+        } else {
+          content = _fallback();
+        }
+
+        return ClipRRect(
+          borderRadius: corners,
+          child: SizedBox(
+            height: height,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                content,
+                // keeps overlaid chips readable
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.12),
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.45),
+                      ],
+                      stops: const [0.0, 0.5, 1.0],
                     ),
                   ),
-                ],
-              ),
+                ),
+                Positioned(
+                  left: 10,
+                  bottom: 8,
+                  child: Row(
+                    children: [
+                      const Icon(Icons.tag_rounded,
+                          size: 12, color: Colors.white70),
+                      const SizedBox(width: 4),
+                      Text(
+                        fandom.toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                          shadows: [
+                            Shadow(color: Colors.black54, blurRadius: 6)
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

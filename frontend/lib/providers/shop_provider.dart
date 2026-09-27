@@ -598,6 +598,10 @@ class ShopProvider extends ChangeNotifier {
     String? shippingAddress,
     String? note,
     String? paymentMethod,
+    String? cardNumber,
+    int? expMonth,
+    int? expYear,
+    String? cvc,
   }) async {
     final payload = <String, dynamic>{
       'shipping_name': ?shippingName,
@@ -606,6 +610,10 @@ class ShopProvider extends ChangeNotifier {
       'shipping_address': ?shippingAddress,
       if (note != null && note.isNotEmpty) 'note': note,
       'payment_method': ?paymentMethod,
+      'card_number': ?cardNumber,
+      'exp_month': ?expMonth,
+      'exp_year': ?expYear,
+      'cvc': ?cvc,
       if (_cart.promoCode != null) 'promo': _cart.promoCode,
     };
 

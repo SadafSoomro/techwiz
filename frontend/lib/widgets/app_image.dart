@@ -1,5 +1,57 @@
 import 'package:flutter/material.dart';
 
+/// Returns a `cacheWidth` that decodes an image at roughly the size it will
+/// actually be painted, instead of at full source resolution.
+///
+/// The bundled artwork is 1200x600, which costs ~2.7 MB of bitmap each once
+/// decoded - but most of it is shown as a card 160-360 px wide. Decoding a
+/// full-resolution bitmap for every card in a scrolling list (and holding them
+/// all in the image cache) is what made the lists stutter and the app feel
+/// like it was hanging. Asking Flutter for a smaller decode cuts that memory
+/// by 4-10x with no visible quality loss.
+///
+/// Flutter never upscales a `cacheWidth` beyond the source size, so a wrong
+/// guess is harmless.
+int? decodeCacheWidth(
+  BuildContext context, {
+  double? width,
+  double? height,
+  double assumedAspect = 2.0,
+}) {
+  final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.0;
+
+  double? logical;
+  if (width != null && width.isFinite && width > 0) {
+    logical = width;
+  } else if (height != null && height.isFinite && height > 0) {
+    // Only a height is known (e.g. an unbounded horizontal rail); most of this
+    // project's art is 2:1 landscape.
+    logical = height * assumedAspect;
+  }
+  if (logical == null) return null;
+
+  final pixels = (logical * dpr).round();
+  if (pixels <= 0) return null;
+  // Keep tiny avatars from becoming an unreadable smear.
+  return pixels < 64 ? 64 : pixels;
+}
+
+/// Works out the width an image will actually be laid out at, preferring an
+/// explicit width and otherwise using the real incoming constraints.
+///
+/// Callers often pass `width: double.infinity` (full-bleed banners) or nothing
+/// at all, in which case the only honest answer comes from the layout - and a
+/// card in a grid really does get its own narrower constraint there.
+double? resolveImageWidth(BoxConstraints constraints, double? explicit) {
+  if (explicit != null && explicit.isFinite && explicit > 0) return explicit;
+  if (constraints.hasBoundedWidth &&
+      constraints.maxWidth.isFinite &&
+      constraints.maxWidth > 0) {
+    return constraints.maxWidth;
+  }
+  return null;
+}
+
 /// Shared image widget used by every Member 1 / Member 2 screen.
 ///
 /// Resolution order:
@@ -42,45 +94,59 @@ class AppImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final corners = borderRadius ?? BorderRadius.circular(0);
 
-    Widget child;
-    if (_isAsset) {
-      child = Image.asset(
-        path!,
-        height: height,
-        width: width,
-        fit: fit,
-        errorBuilder: (_, _, _) => _fallback(),
-      );
-    } else if (_isRemote) {
-      child = Image.network(
-        path!,
-        height: height,
-        width: width,
-        fit: fit,
-        loadingBuilder: (context, inner, progress) =>
-            progress == null ? inner : _fallback(),
-        errorBuilder: (_, _, _) => _fallback(),
-      );
-    } else {
-      child = _fallback();
-    }
+    // LayoutBuilder so a card in a grid is decoded at the grid's real column
+    // width rather than at full source resolution.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cacheWidth = decodeCacheWidth(
+          context,
+          width: resolveImageWidth(constraints, width),
+          height: height,
+        );
 
-    if (!showFade) return ClipRRect(borderRadius: corners, child: child);
+        Widget child;
+        if (_isAsset) {
+          child = Image.asset(
+            path!,
+            height: height,
+            width: width,
+            fit: fit,
+            cacheWidth: cacheWidth,
+            errorBuilder: (_, _, _) => _fallback(),
+          );
+        } else if (_isRemote) {
+          child = Image.network(
+            path!,
+            height: height,
+            width: width,
+            fit: fit,
+            cacheWidth: cacheWidth,
+            loadingBuilder: (context, inner, progress) =>
+                progress == null ? inner : _fallback(),
+            errorBuilder: (_, _, _) => _fallback(),
+          );
+        } else {
+          child = _fallback();
+        }
 
-    return ClipRRect(
-      borderRadius: corners,
-      child: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 380),
-        switchInCurve: Curves.easeOutCubic,
-        transitionBuilder: (widget, animation) => FadeTransition(
-          opacity: animation,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 1.04, end: 1.0).animate(animation),
-            child: widget,
+        if (!showFade) return ClipRRect(borderRadius: corners, child: child);
+
+        return ClipRRect(
+          borderRadius: corners,
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 380),
+            switchInCurve: Curves.easeOutCubic,
+            transitionBuilder: (widget, animation) => FadeTransition(
+              opacity: animation,
+              child: ScaleTransition(
+                scale: Tween<double>(begin: 1.04, end: 1.0).animate(animation),
+                child: widget,
+              ),
+            ),
+            child: child,
           ),
-        ),
-        child: child,
-      ),
+        );
+      },
     );
   }
 
@@ -151,7 +217,15 @@ class AppAvatar extends StatelessWidget {
         width: radius * 2,
         height: radius * 2,
         child: _usable
-            ? AppImage(path: path, fit: BoxFit.cover, borderRadius: BorderRadius.circular(radius))
+            ? AppImage(
+                path: path,
+                fit: BoxFit.cover,
+                // Passing the real size lets the avatar decode small instead
+                // of at the avatar file's full resolution.
+                width: radius * 2,
+                height: radius * 2,
+                borderRadius: BorderRadius.circular(radius),
+              )
             : _initialAvatar(),
       ),
     );

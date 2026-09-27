@@ -8,7 +8,7 @@ import '../theme/shop_theme.dart';
 /// FANDOM VERSE - AI Fan Helper companion.
 ///
 /// A cute cartoon robot that floats a little above the navigation bar, on the
-/// bottom-left of the app shell. It deliberately lives *outside* the bottom bar
+/// bottom-right of the app shell (above the Profile icon). It deliberately lives *outside* the bottom bar
 /// so the AI helper keeps its own, always-reachable entry point instead of
 /// being buried inside the Shop tab. Tapping it opens `AiHelperScreen`.
 class AiAgentButton extends StatefulWidget {
@@ -84,44 +84,55 @@ class _AiAgentButtonState extends State<AiAgentButton>
   Widget build(BuildContext context) {
     final size = widget.size;
 
+    // The robot itself never changes between frames - only its position, its
+    // eyes and the "Hi!" bubble do. Building it once and handing it to the
+    // AnimatedBuilders as `child` means a tick repaints three Transform
+    // widgets instead of re-creating the whole (gradient + shadow heavy) robot
+    // 60 times a second.
+    final robot = SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          _halo(size),
+          _antenna(size),
+          _pods(size),
+          _head(size),
+          _bubble(size),
+        ],
+      ),
+    );
+
     return Semantics(
       button: true,
       label: 'AI Fan Helper',
-      child: GestureDetector(
-        onTapDown: (_) => setState(() => _pressed = true),
-        onTapUp: (_) => setState(() => _pressed = false),
-        onTapCancel: () => setState(() => _pressed = false),
-        onTap: widget.onTap,
-        behavior: HitTestBehavior.opaque,
-        child: AnimatedBuilder(
-          animation: Listenable.merge([_bob, _blink, _greet]),
-          builder: (context, _) {
-            final bob = _bob.value;
-            return Transform.translate(
-              offset: Offset(0, (bob * -5) + 2.5),
-              child: Transform.rotate(
-                angle: (bob - 0.5) * 0.1,
-                child: Transform.scale(
-                  scale: _pressed ? 0.9 : 1,
-                  child: SizedBox(
-                    width: size,
-                    height: size,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      alignment: Alignment.center,
-                      children: [
-                        _halo(size),
-                        _antenna(size),
-                        _pods(size),
-                        _head(size),
-                        _bubble(size),
-                      ],
-                    ),
+      // Keeps the constant animation from dirtying the rest of the app shell.
+      child: RepaintBoundary(
+        child: GestureDetector(
+          onTapDown: (_) => setState(() => _pressed = true),
+          onTapUp: (_) => setState(() => _pressed = false),
+          onTapCancel: () => setState(() => _pressed = false),
+          onTap: widget.onTap,
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedBuilder(
+            animation: _bob,
+            builder: (context, child) {
+              final bob = _bob.value;
+              return Transform.translate(
+                offset: Offset(0, (bob * -5) + 2.5),
+                child: Transform.rotate(
+                  angle: (bob - 0.5) * 0.1,
+                  child: Transform.scale(
+                    scale: _pressed ? 0.9 : 1,
+                    child: child,
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+            child: robot,
+          ),
         ),
       ),
     );
@@ -238,13 +249,18 @@ class _AiAgentButtonState extends State<AiAgentButton>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _eye(size),
-                  SizedBox(width: size * 0.14),
-                  _eye(size),
-                ],
+              AnimatedBuilder(
+                // Only the eyes depend on the blink controller, so only they
+                // are rebuilt on its ticks.
+                animation: _blink,
+                builder: (context, _) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _eye(size),
+                    SizedBox(width: size * 0.14),
+                    _eye(size),
+                  ],
+                ),
               ),
               SizedBox(height: size * 0.055),
               Row(
@@ -319,10 +335,16 @@ class _AiAgentButtonState extends State<AiAgentButton>
   Widget _bubble(double size) {
     return Positioned(
       top: -size * 0.12,
-      right: -size * 0.24,
+      left: -size * 0.24,
       child: IgnorePointer(
-        child: Opacity(
-          opacity: _greetOpacity,
+        // Rebuilt on the greet controller's ticks only - the rest of the robot
+        // is not affected.
+        child: AnimatedBuilder(
+          animation: _greet,
+          builder: (context, child) => Opacity(
+            opacity: _greetOpacity,
+            child: child,
+          ),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
             decoration: BoxDecoration(

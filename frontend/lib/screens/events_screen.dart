@@ -80,7 +80,12 @@ class _EventsScreenState extends State<EventsScreen> {
         color: EventTheme.primary,
         onRefresh: _refresh,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 28),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            4,
+            16,
+            widget.embedded ? 95 : 28,
+          ),
           children: [
             // ----------------------- next event hero -----------------------
             if (provider.nextEvent != null) _NextEventHero(event: provider.nextEvent!),

@@ -239,8 +239,13 @@ export const updateMyProfile = asyncHandler(async (req, res) => {
   if (bio !== undefined && String(bio).length > 240) {
     return res.status(400).json({ success: false, message: "Bio must be 240 characters or less" });
   }
-  if (avatar !== undefined && String(avatar).trim() !== "" && !AVATARS.includes(String(avatar))) {
-    return res.status(400).json({ success: false, message: "Unknown avatar preset" });
+  if (avatar !== undefined && String(avatar).trim() !== "") {
+    const avStr = String(avatar).trim();
+    const isValidPreset = AVATARS.includes(avStr);
+    const isValidUrl = avStr.startsWith("http://") || avStr.startsWith("https://") || avStr.startsWith("assets/");
+    if (!isValidPreset && !isValidUrl) {
+      return res.status(400).json({ success: false, message: "Invalid avatar format" });
+    }
   }
 
   await run(

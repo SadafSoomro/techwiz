@@ -20,6 +20,19 @@ class ApiConfig {
   static const String googleClientId =
       '346283855204-tmhtfilf469h44b4jc8mri4oqokfk7jf.apps.googleusercontent.com';
 
+  // Mapbox API Key & Map Tile Service (CartoDB Dark Matter for 100% English place labels)
+  static const String mapboxApiKey = 'YOUR_MAPBOX_API_KEY';
+  static String mapboxTileUrl({String style = 'dark-v11'}) =>
+      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+  static const String fallbackTileUrl =
+      'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+  static String get mapLink =>
+      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+  static String get mapUrl =>
+      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+  static String get googleMapsLink =>
+      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+
   // Endpoints
   static String get registerUrl => '$baseUrl/auth/register';
   static String get verifyEmailUrl => '$baseUrl/auth/verify-email';

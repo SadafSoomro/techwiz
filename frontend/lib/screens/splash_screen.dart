@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -21,9 +23,6 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
 
-    // Restoring the session notifies the providers, so it must not run during
-    // the build phase - otherwise Flutter throws "setState() called during
-    // build". Wait for the first frame of the splash artwork, then start.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _navigateNext();
     });
@@ -33,33 +32,23 @@ class _SplashScreenState extends State<SplashScreen> {
     final authProvider = context.read<AuthProvider>();
     final profileProvider = context.read<ProfileProvider>();
 
-    // The splash always stays on screen for at least this long, so it is never
-    // skipped (or flashed) before the next screen is ready.
     final minimumDisplay = Future<void>.delayed(
-      const Duration(milliseconds: 2500),
+      const Duration(milliseconds: 900),
     );
 
-    // 1. Restore the saved session while the artwork is on screen.
     await authProvider.checkAuthStatus();
 
-    // An administrator goes straight into the Member 6 panel - preparing the
-    // fan Home dashboard for them would be wasted work.
     final isAdmin =
         authProvider.isAuthenticated &&
         (authProvider.user?['role'] ?? 'user').toString().toLowerCase() ==
             'admin';
 
     if (authProvider.isAuthenticated && !isAdmin) {
-      // 2. Load the dashboard aggregate BEFORE navigating, so the Home screen
-      //    is fully populated the moment it appears (no shimmer / empty state).
       await _prepareHome(profileProvider);
     } else {
-      // 3. Make the login screen ready before it is shown: its artwork is
-      //    precached so nothing pops in after the transition.
       await _prepareLoginArtwork();
     }
 
-    // 4. Hold the splash until the minimum display time has also elapsed.
     await minimumDisplay;
     if (!mounted) return;
 
@@ -72,21 +61,17 @@ class _SplashScreenState extends State<SplashScreen> {
     }
   }
 
-  /// Preloads the Home dashboard. A slow or failing request can never hold the
-  /// splash hostage - it is capped and errors are swallowed.
   Future<void> _prepareHome(ProfileProvider profileProvider) async {
     try {
       await profileProvider.loadDashboard().timeout(const Duration(seconds: 8));
-    } catch (_) {
-      // The Home screen shows its own error/empty state if this fails.
-    }
+    } catch (_) {}
   }
 
-  /// Warms the image cache with the artwork the login screen renders.
   Future<void> _prepareLoginArtwork() async {
     const assets = [
       'assets/images/fandom_logo.png',
       'assets/images/google_logo.png',
+      'assets/images/splash_bg.png',
     ];
 
     for (final path in assets) {
@@ -95,14 +80,10 @@ class _SplashScreenState extends State<SplashScreen> {
           AssetImage(path),
           context,
         ).timeout(const Duration(seconds: 3));
-      } catch (_) {
-        // A missing asset must never block the splash.
-      }
+      } catch (_) {}
     }
   }
 
-  /// A fade-through route so the next screen is fully built before the splash
-  /// fades away instead of appearing abruptly.
   PageRouteBuilder<void> _readyRoute(Widget screen) {
     return PageRouteBuilder<void>(
       transitionDuration: const Duration(milliseconds: 450),
@@ -132,11 +113,6 @@ class _SplashScreenState extends State<SplashScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Exact User-Provided Full HD Splash Screen Artwork.
-          //
-          // It is painted at full opacity from the very first frame (no
-          // fade-in) so the FANDOM VERSE key art is always what the user sees
-          // while the session and the dashboard load behind it.
           Positioned.fill(
             child: Image.asset(
               'assets/images/splash_bg.png',
@@ -148,13 +124,12 @@ class _SplashScreenState extends State<SplashScreen> {
                   decoration: const BoxDecoration(
                     gradient: AppTheme.backgroundGradient,
                   ),
-                  child: const Center(child: FandomLogoWidget(height: 96)),
+                  child: const Center(child: FandomLogoWidget(height: 120)),
                 );
               },
             ),
           ),
 
-          // Subtle Bottom Progress Bar
           Positioned(
             bottom: 40,
             left: 0,

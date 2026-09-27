@@ -29,6 +29,9 @@ class ProfileProvider extends ChangeNotifier {
 
   List<String> _recentBadges = [];
 
+  /// Guards against duplicate concurrent dashboard requests (splash + Home).
+  Future<void>? _dashboardInFlight;
+
   // ---------------------------- getters ----------------------------
   bool get loading => _loading;
   bool get saving => _saving;
@@ -85,9 +88,20 @@ class ProfileProvider extends ChangeNotifier {
   // ==================================================================
 
   /// Home Dashboard aggregate (the cached /profile/home payload).
-  Future<void> loadDashboard({bool refresh = false}) async {
-    if (_dashboard != null && !refresh) return;
+  ///
+  /// The splash screen starts this while it is still on screen and the Home
+  /// tab asks for it again as it mounts; the in-flight guard means the second
+  /// call joins the first request instead of firing a duplicate one.
+  Future<void> loadDashboard({bool refresh = false}) {
+    if (_dashboard != null && !refresh) return Future<void>.value();
+    if (_dashboardInFlight != null) return _dashboardInFlight!;
 
+    final future = _loadDashboard(refresh: refresh);
+    _dashboardInFlight = future.whenComplete(() => _dashboardInFlight = null);
+    return _dashboardInFlight!;
+  }
+
+  Future<void> _loadDashboard({bool refresh = false}) async {
     _setLoading(true);
     final result = await ProfileService.dashboard();
 

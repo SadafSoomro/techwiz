@@ -109,7 +109,8 @@ export function initShopSchema() {
         total          REAL DEFAULT 0,
         currency       TEXT DEFAULT 'PKR',
         status         TEXT DEFAULT 'placed',
-        payment_method TEXT DEFAULT 'Cash on Delivery (simulated)',
+        payment_method TEXT DEFAULT 'Credit / Debit Card (Stripe)',
+        stripe_payment_id TEXT,
         shipping_name  TEXT,
         shipping_phone TEXT,
         shipping_city  TEXT,
@@ -185,6 +186,7 @@ export function initShopSchema() {
     db.run(`CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items (order_id)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_price_alerts_user ON price_alerts (user_id, is_seen)`);
     db.run(`CREATE INDEX IF NOT EXISTS idx_ai_chat_user      ON ai_chat_messages (user_id, id)`);
+    db.run(`ALTER TABLE orders ADD COLUMN stripe_payment_id TEXT`, () => {});
   });
 }
 

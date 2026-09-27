@@ -32,6 +32,11 @@
   <title>FANDOM VERSE</title>
   <link rel="manifest" href="manifest.json">
 
+  <!-- The boot splash artwork is the very first thing the user sees, so start
+       downloading it while the rest of the document is still being parsed
+       instead of waiting for the <img> to be reached. -->
+  <link rel="preload" as="image" href="assets/assets/images/splash_bg.jpg">
+
   <!-- Matches the app background so the browser never flashes white while the
        Flutter bundle boots. -->
   <style>
@@ -109,7 +114,7 @@
   <!-- Branded boot splash - artwork + loading bar, removed by
        web/flutter_bootstrap.js after the first Flutter frame. -->
   <div id="fv-boot-splash">
-    <img class="fv-art" src="assets/assets/images/splash_bg.png" alt="FANDOM VERSE" />
+    <img class="fv-art" src="assets/assets/images/splash_bg.jpg" alt="FANDOM VERSE" />
     <div class="fv-loading">
       <div class="fv-bar"><span></span></div>
       <p class="fv-text">Loading your fandom universe...</p>

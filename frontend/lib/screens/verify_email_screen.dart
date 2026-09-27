@@ -60,9 +60,10 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Container(
-        width: size.width,
-        height: size.height,
+        width: double.infinity,
+        constraints: BoxConstraints(minHeight: size.height),
         decoration: const BoxDecoration(
           gradient: AppTheme.backgroundGradient,
         ),

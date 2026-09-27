@@ -71,7 +71,7 @@ function todayIso() {
 }
 
 /** Builds the WHERE clause shared by list / map / nearby. */
-function buildWhere(query, { includePast = false } = {}) {
+function buildWhere(query, { includePast = true } = {}) {
   const conditions = [];
   const params = [];
 
@@ -207,7 +207,7 @@ export const getEvents = asyncHandler(async (req, res) => {
 export const getNearbyEvents = asyncHandler(async (req, res) => {
   const lat = parseFloat(req.query.lat);
   const lng = parseFloat(req.query.lng);
-  const radius = parseFloat(req.query.radius) || 100; // km
+  const radius = parseFloat(req.query.radius) || 20000; // km - default to worldwide search sorted by distance
 
   if (Number.isNaN(lat) || Number.isNaN(lng)) {
     return res.status(400).json({
@@ -216,13 +216,7 @@ export const getNearbyEvents = asyncHandler(async (req, res) => {
     });
   }
 
-  const cacheKey = `events:nearby:${lat.toFixed(2)}:${lng.toFixed(2)}:${radius}`;
-  const cached = await cache.get(cacheKey);
-  if (cached) {
-    return res.json({ success: true, ...cached, cached: true });
-  }
-
-  const { sql, params } = buildWhere({});
+  const { sql, params } = buildWhere(req.query);
   const rows = await all(`${EVENT_SELECT} ${sql} ORDER BY e.event_date ASC`, params);
 
   const withDistance = rows
@@ -236,7 +230,7 @@ export const getNearbyEvents = asyncHandler(async (req, res) => {
       seats_left: Math.max(0, (row.capacity || 0) - (row.tickets_sold || 0)),
     }))
     .filter((row) => row.distance_km != null && row.distance_km <= radius)
-    .sort((a, b) => a.distance_km - b.distance_km);
+    .sort((a, b) => (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9));
 
   const payload = {
     origin: { latitude: lat, longitude: lng },
@@ -245,7 +239,6 @@ export const getNearbyEvents = asyncHandler(async (req, res) => {
     events: withDistance,
   };
 
-  await cache.set(cacheKey, payload, 120);
   res.json({ success: true, ...payload, cached: false });
 });
 

@@ -1,17 +1,20 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:latlong2/latlong.dart';
+
+import '../config/api_config.dart';
 import '../models/event_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/event_theme.dart';
 
 /// MEMBER 4 - Events & Maps
-/// A self contained, stylised map used by the Map / Event Details (Map View)
-/// screens. It draws its own cartography with a CustomPainter so the app
-/// works offline and does not need a Google Maps API key, while still
-/// showing real event coordinates projected onto the canvas.
-class EventMapView extends StatelessWidget {
+/// Mapbox powered interactive map widget using `flutter_map` and the Mapbox API key.
+/// Displays real-world map tiles with pins, interactive pan/zoom, compass, scale bar,
+/// and smooth recentering.
+class EventMapView extends StatefulWidget {
   final List<MapPin> pins;
   final int? selectedPinId;
   final void Function(MapPin pin)? onPinTap;
@@ -21,12 +24,10 @@ class EventMapView extends StatelessWidget {
   final double? currentLongitude;
   final String currentLabel;
 
-  /// Shows the compass, scale bar and grid overlay.
+  /// Shows the compass, scale bar, zoom controls, and location chip overlay.
   final bool showOverlays;
 
-  /// Space reserved by the screen around the map (the filter bar at the top,
-  /// the nearby carousel / event card at the bottom). Overlays and pins are
-  /// kept inside this gap so nothing overlaps.
+  /// Space reserved by screen chrome (filters at top, card/carousel at bottom).
   final EdgeInsets overlayPadding;
 
   const EventMapView({
@@ -43,313 +44,184 @@ class EventMapView extends StatelessWidget {
   });
 
   @override
+  State<EventMapView> createState() => _EventMapViewState();
+}
+
+class _EventMapViewState extends State<EventMapView> {
+  final MapController _mapController = MapController();
+
+  LatLng get _initialCenter {
+    if (widget.showCurrentLocation &&
+        widget.currentLatitude != null &&
+        widget.currentLongitude != null &&
+        widget.currentLatitude != 0 &&
+        widget.currentLongitude != 0) {
+      return LatLng(widget.currentLatitude!, widget.currentLongitude!);
+    }
+    if (widget.pins.isNotEmpty) {
+      final validPins = widget.pins.where((p) => p.latitude != 0 || p.longitude != 0).toList();
+      if (validPins.isNotEmpty) {
+        final avgLat = validPins.map((p) => p.latitude).reduce((a, b) => a + b) / validPins.length;
+        final avgLng = validPins.map((p) => p.longitude).reduce((a, b) => a + b) / validPins.length;
+        return LatLng(avgLat, avgLng);
+      }
+    }
+    return const LatLng(24.8607, 67.0011); // Fallback: Karachi
+  }
+
+  void _zoomIn() {
+    final currentZoom = _mapController.camera.zoom;
+    _mapController.move(_mapController.camera.center, currentZoom + 1.0);
+  }
+
+  void _zoomOut() {
+    final currentZoom = _mapController.camera.zoom;
+    _mapController.move(_mapController.camera.center, currentZoom - 1.0);
+  }
+
+  void _recenter() {
+    _mapController.move(_initialCenter, 13.0);
+  }
+
+  @override
+  void didUpdateWidget(covariant EventMapView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selectedPinId != null && widget.selectedPinId != oldWidget.selectedPinId) {
+      final pin = widget.pins.where((p) => p.id == widget.selectedPinId).firstOrNull;
+      if (pin != null && (pin.latitude != 0 || pin.longitude != 0)) {
+        _mapController.move(LatLng(pin.latitude, pin.longitude), 14.0);
+      }
+    } else if (widget.pins != oldWidget.pins ||
+        widget.currentLatitude != oldWidget.currentLatitude ||
+        widget.currentLongitude != oldWidget.currentLongitude) {
+      final center = _initialCenter;
+      _mapController.move(center, 12.5);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final size = Size(constraints.maxWidth, constraints.maxHeight);
-        final bounds = _Bounds.from(
-          pins: pins,
-          extraLat: showCurrentLocation ? currentLatitude : null,
-          extraLng: showCurrentLocation ? currentLongitude : null,
-        );
+    final center = _initialCenter;
 
-        // Pins are projected inside the area that is not covered by the
-        // screen's own chrome (filter bar / carousel), so no pin is ever
-        // drawn underneath them.
-        final pad = EdgeInsets.fromLTRB(
-          46,
-          60 + overlayPadding.top,
-          46,
-          60 + overlayPadding.bottom,
-        );
-
-        return ClipRect(
-          child: Stack(
+    return ClipRect(
+      child: Stack(
+        children: [
+          // -------------------------- Mapbox Tile Map --------------------------
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: center,
+              initialZoom: 12.0,
+              minZoom: 2.0,
+              maxZoom: 18.0,
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+              ),
+            ),
             children: [
-              // ---------------------- cartography ----------------------
-              Positioned.fill(
-                child: CustomPaint(painter: _MapBackgroundPainter()),
+              // Mapbox Vector Dark Style Tile Layer
+              TileLayer(
+                urlTemplate: ApiConfig.mapboxTileUrl(style: 'dark-v11'),
+                fallbackUrl: ApiConfig.fallbackTileUrl,
+                userAgentPackageName: 'com.fandomverse.app',
+                maxZoom: 19,
+                tileProvider: NetworkTileProvider(),
               ),
-              Positioned.fill(
-                child: CustomPaint(painter: _MapGridPainter()),
+
+              // Markers Layer
+              MarkerLayer(
+                markers: [
+                  // Current user location marker
+                  if (widget.showCurrentLocation &&
+                      widget.currentLatitude != null &&
+                      widget.currentLongitude != null &&
+                      widget.currentLatitude != 0 &&
+                      widget.currentLongitude != 0)
+                    Marker(
+                      point: LatLng(widget.currentLatitude!, widget.currentLongitude!),
+                      width: 28,
+                      height: 28,
+                      child: const _CurrentLocationMarker(),
+                    ),
+
+                  // Event pin markers
+                  ...widget.pins.map((pin) {
+                    if (pin.latitude == 0 && pin.longitude == 0) return null;
+                    final selected = pin.id == widget.selectedPinId;
+
+                    return Marker(
+                      point: LatLng(pin.latitude, pin.longitude),
+                      width: selected ? 190 : 52,
+                      height: selected ? 86 : 58,
+                      alignment: Alignment.bottomCenter,
+                      child: _MapMarker(
+                        pin: pin,
+                        selected: selected,
+                        onTap: widget.onPinTap == null ? null : () => widget.onPinTap!(pin),
+                      ),
+                    );
+                  }).whereType<Marker>(),
+                ],
               ),
-
-              // --------------------- current location -------------------
-              if (showCurrentLocation &&
-                  currentLatitude != null &&
-                  currentLongitude != null)
-                _positioned(
-                  at: bounds.project(
-                    currentLatitude!,
-                    currentLongitude!,
-                    size,
-                    pad,
-                  ),
-                  width: 26,
-                  height: 26,
-                  child: const _CurrentLocationMarker(),
-                ),
-
-              // -------------------------- pins --------------------------
-              ...pins.map((pin) {
-                final offset = bounds.project(pin.latitude, pin.longitude, size, pad);
-                final selected = pin.id == selectedPinId;
-
-                return _positioned(
-                  at: offset,
-                  width: selected ? 190 : 52,
-                  height: selected ? 86 : 58,
-                  anchorBottom: true,
-                  child: _MapMarker(
-                    pin: pin,
-                    selected: selected,
-                    onTap: onPinTap == null ? null : () => onPinTap!(pin),
-                  ),
-                );
-              }),
-
-              // ------------------------ overlays ------------------------
-              if (showOverlays) ...[
-                Positioned(
-                  top: 14 + overlayPadding.top,
-                  right: 14,
-                  child: const _Compass(),
-                ),
-                Positioned(
-                  left: 14,
-                  bottom: 14 + overlayPadding.bottom,
-                  child: const _ScaleBar(),
-                ),
-                if (showCurrentLocation)
-                  Positioned(
-                    top: 14 + overlayPadding.top,
-                    left: 14,
-                    child: _CurrentLocationChip(label: currentLabel),
-                  ),
-              ],
             ],
           ),
-        );
-      },
-    );
-  }
 
-  /// Positions a child so that [at] is the anchor point.
-  /// When [anchorBottom] is true the anchor is the bottom-centre of the child
-  /// (the tip of a map pin).
-  Widget _positioned({
-    required Offset at,
-    required double width,
-    required double height,
-    required Widget child,
-    bool anchorBottom = false,
-  }) {
-    return Positioned(
-      left: at.dx - width / 2,
-      top: anchorBottom ? at.dy - height : at.dy - height / 2,
-      width: width,
-      height: height,
-      child: child,
+          // Edge vignette gradient to maintain app aesthetic
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(painter: _VignettePainter()),
+            ),
+          ),
+
+          // ------------------------ Map Overlays ------------------------
+          if (widget.showOverlays) ...[
+            // Compass N
+            Positioned(
+              top: 14 + widget.overlayPadding.top,
+              right: 14,
+              child: _Compass(onTap: _recenter),
+            ),
+
+            // Zoom (+/-) controls
+            Positioned(
+              top: 68 + widget.overlayPadding.top,
+              right: 14,
+              child: _ZoomControls(
+                onZoomIn: _zoomIn,
+                onZoomOut: _zoomOut,
+              ),
+            ),
+
+            // Scale Bar
+            Positioned(
+              left: 14,
+              bottom: 14 + widget.overlayPadding.bottom,
+              child: const _ScaleBar(),
+            ),
+
+            // User location chip
+            if (widget.showCurrentLocation)
+              Positioned(
+                top: 14 + widget.overlayPadding.top,
+                left: 14,
+                child: _CurrentLocationChip(
+                  label: widget.currentLabel,
+                  onTap: _recenter,
+                ),
+              ),
+          ],
+        ],
+      ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Projection
+// Vignette Painter
 // ---------------------------------------------------------------------------
-class _Bounds {
-  final double minLat;
-  final double maxLat;
-  final double minLng;
-  final double maxLng;
-
-  const _Bounds(this.minLat, this.maxLat, this.minLng, this.maxLng);
-
-  factory _Bounds.from({
-    required List<MapPin> pins,
-    double? extraLat,
-    double? extraLng,
-  }) {
-    final lats = <double>[];
-    final lngs = <double>[];
-
-    for (final pin in pins) {
-      if (pin.latitude != 0 || pin.longitude != 0) {
-        lats.add(pin.latitude);
-        lngs.add(pin.longitude);
-      }
-    }
-    if (extraLat != null && extraLng != null) {
-      lats.add(extraLat);
-      lngs.add(extraLng);
-    }
-
-    if (lats.isEmpty) {
-      return const _Bounds(24.7, 25.0, 66.9, 67.2); // fallback: Karachi
-    }
-
-    var minLat = lats.reduce(math.min);
-    var maxLat = lats.reduce(math.max);
-    var minLng = lngs.reduce(math.min);
-    var maxLng = lngs.reduce(math.max);
-
-    // small breathing room so pins are not glued to the edges
-    final latPad = math.max((maxLat - minLat) * 0.12, 0.02);
-    final lngPad = math.max((maxLng - minLng) * 0.12, 0.02);
-
-    minLat -= latPad;
-    maxLat += latPad;
-    minLng -= lngPad;
-    maxLng += lngPad;
-
-    return _Bounds(minLat, maxLat, minLng, maxLng);
-  }
-
-  double get _latSpan => maxLat - minLat;
-  double get _lngSpan => maxLng - minLng;
-
-  Offset project(double lat, double lng, Size size, EdgeInsets pad) {
-    final w = math.max(size.width - pad.horizontal, 1);
-    final h = math.max(size.height - pad.vertical, 1);
-
-    final x = _lngSpan.abs() < 1e-9
-        ? pad.left + w / 2
-        : pad.left + ((lng - minLng) / _lngSpan) * w;
-
-    final y = _latSpan.abs() < 1e-9
-        ? pad.top + h / 2
-        : pad.top + ((maxLat - lat) / _latSpan) * h;
-
-    return Offset(x, y);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Cartography painter
-// ---------------------------------------------------------------------------
-class _MapBackgroundPainter extends CustomPainter {
+class _VignettePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final random = math.Random(11);
-
-    // ------------------------------ land ------------------------------
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = EventTheme.mapBackground,
-    );
-
-    // ------------------------------ water -----------------------------
-    final river = Path()
-      ..moveTo(-40, size.height * 0.18)
-      ..quadraticBezierTo(
-        size.width * 0.35,
-        size.height * 0.34,
-        size.width * 0.62,
-        size.height * 0.52,
-      )
-      ..quadraticBezierTo(
-        size.width * 0.85,
-        size.height * 0.68,
-        size.width + 40,
-        size.height * 0.86,
-      );
-
-    canvas.drawPath(
-      river,
-      Paint()
-        ..color = EventTheme.mapWater
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = math.max(size.width * 0.13, 46)
-        ..strokeCap = StrokeCap.round,
-    );
-
-    // ------------------------------ parks -----------------------------
-    final parkPaint = Paint()..color = EventTheme.mapPark;
-    for (int i = 0; i < 5; i++) {
-      final w = 40 + random.nextDouble() * 90;
-      final h = 34 + random.nextDouble() * 70;
-      final rect = Rect.fromLTWH(
-        random.nextDouble() * (size.width - w),
-        random.nextDouble() * (size.height - h),
-        w,
-        h,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(14)),
-        parkPaint,
-      );
-    }
-
-    // --------------------------- city blocks ---------------------------
-    const cell = 54.0;
-    final blockPaint = Paint()..color = EventTheme.mapBlock;
-
-    for (double x = 0; x < size.width; x += cell) {
-      for (double y = 0; y < size.height; y += cell) {
-        if (random.nextDouble() < 0.18) continue; // gaps become open ground
-
-        final rect = Rect.fromLTWH(x + 7, y + 7, cell - 16, cell - 16);
-        final radius = random.nextDouble() < 0.3 ? 4.0 : 2.0;
-
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, Radius.circular(radius)),
-          blockPaint,
-        );
-      }
-    }
-
-    // ------------------------------ roads ------------------------------
-    final minorRoad = Paint()
-      ..color = EventTheme.mapRoad
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round;
-
-    final majorRoad = Paint()
-      ..color = EventTheme.mapRoadMajor
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round;
-
-    for (double y = 0; y < size.height; y += cell * 2) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), minorRoad);
-    }
-    for (double x = 0; x < size.width; x += cell * 2) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), minorRoad);
-    }
-
-    // two major arteries across the view
-    canvas.drawLine(
-      Offset(-20, size.height * 0.34),
-      Offset(size.width + 20, size.height * 0.28),
-      majorRoad,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.28, -20),
-      Offset(size.width * 0.38, size.height + 20),
-      majorRoad,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _MapBackgroundPainter oldDelegate) => false;
-}
-
-/// Subtle grid + edge vignette drawn above the cartography.
-class _MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final grid = Paint()
-      ..color = Colors.white.withValues(alpha: 0.022)
-      ..strokeWidth = 1;
-
-    const step = 34.0;
-    for (double x = 0; x < size.width; x += step) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), grid);
-    }
-    for (double y = 0; y < size.height; y += step) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), grid);
-    }
-
-    // vignette so overlays stay readable
     final vignette = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
@@ -366,11 +238,11 @@ class _MapGridPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _MapGridPainter oldDelegate) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // ---------------------------------------------------------------------------
-// Markers
+// Pin Marker Widget
 // ---------------------------------------------------------------------------
 class _MapMarker extends StatelessWidget {
   final MapPin pin;
@@ -386,21 +258,20 @@ class _MapMarker extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // -------------------- label (selected only) --------------------
           if (selected)
             Flexible(
               child: Container(
-                margin: const EdgeInsets.only(bottom: 6),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                margin: const EdgeInsets.only(bottom: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   color: const Color(0xFF10141C),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: color.withValues(alpha: 0.8)),
+                  border: Border.all(color: color.withValues(alpha: 0.85)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.45),
+                      color: Colors.black.withValues(alpha: 0.5),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -434,7 +305,6 @@ class _MapMarker extends StatelessWidget {
               ),
             ),
 
-          // -------------------------- the pin --------------------------
           AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             width: selected ? 40 : 34,
@@ -443,7 +313,7 @@ class _MapMarker extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [color, color.withValues(alpha: 0.72)],
+                colors: [color, color.withValues(alpha: 0.75)],
               ),
               shape: BoxShape.circle,
               border: Border.all(
@@ -452,7 +322,7 @@ class _MapMarker extends StatelessWidget {
               ),
               boxShadow: [
                 BoxShadow(
-                  color: color.withValues(alpha: 0.55),
+                  color: color.withValues(alpha: 0.6),
                   blurRadius: selected ? 18 : 10,
                   spreadRadius: selected ? 2 : 0,
                 ),
@@ -465,14 +335,13 @@ class _MapMarker extends StatelessWidget {
             ),
           ),
 
-          // pin tip
           Transform.translate(
-            offset: const Offset(0, -4),
+            offset: const Offset(0, -3),
             child: Transform.rotate(
               angle: math.pi / 4,
               child: Container(
-                width: 9,
-                height: 9,
+                width: 8,
+                height: 8,
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: const BorderRadius.only(
@@ -488,6 +357,9 @@ class _MapMarker extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// User Location Pulse Marker
+// ---------------------------------------------------------------------------
 class _CurrentLocationMarker extends StatelessWidget {
   const _CurrentLocationMarker();
 
@@ -499,7 +371,7 @@ class _CurrentLocationMarker extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: EventTheme.teal.withValues(alpha: 0.22),
+            color: EventTheme.teal.withValues(alpha: 0.25),
           ),
         ),
         Container(
@@ -511,7 +383,7 @@ class _CurrentLocationMarker extends StatelessWidget {
             border: Border.all(color: Colors.white, width: 2.5),
             boxShadow: [
               BoxShadow(
-                color: EventTheme.teal.withValues(alpha: 0.7),
+                color: EventTheme.teal.withValues(alpha: 0.75),
                 blurRadius: 12,
                 spreadRadius: 1,
               ),
@@ -524,33 +396,88 @@ class _CurrentLocationMarker extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Overlays
+// Compass Control
 // ---------------------------------------------------------------------------
 class _Compass extends StatelessWidget {
-  const _Compass();
+  final VoidCallback? onTap;
+  const _Compass({this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 42,
+        height: 42,
+        decoration: BoxDecoration(
+          color: const Color(0xFF10141C).withValues(alpha: 0.9),
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.navigation_rounded, color: EventTheme.primary, size: 16),
+            Text(
+              'N',
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                height: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Zoom (+/-) Controls
+// ---------------------------------------------------------------------------
+class _ZoomControls extends StatelessWidget {
+  final VoidCallback onZoomIn;
+  final VoidCallback onZoomOut;
+
+  const _ZoomControls({required this.onZoomIn, required this.onZoomOut});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 42,
-      height: 42,
       decoration: BoxDecoration(
-        color: const Color(0xFF10141C).withValues(alpha: 0.85),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        color: const Color(0xFF10141C).withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 8,
+          ),
+        ],
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.navigation_rounded, color: EventTheme.primary, size: 16),
-          Text(
-            'N',
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
-              height: 1,
-            ),
+          IconButton(
+            constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.add_rounded, color: Colors.white, size: 20),
+            onPressed: onZoomIn,
+          ),
+          Divider(height: 1, thickness: 1, color: Colors.white.withValues(alpha: 0.1)),
+          IconButton(
+            constraints: const BoxConstraints(minWidth: 38, minHeight: 38),
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.remove_rounded, color: Colors.white, size: 20),
+            onPressed: onZoomOut,
           ),
         ],
       ),
@@ -558,6 +485,9 @@ class _Compass extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Scale Bar
+// ---------------------------------------------------------------------------
 class _ScaleBar extends StatelessWidget {
   const _ScaleBar();
 
@@ -566,9 +496,9 @@ class _ScaleBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF10141C).withValues(alpha: 0.8),
+        color: const Color(0xFF10141C).withValues(alpha: 0.85),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -576,7 +506,7 @@ class _ScaleBar extends StatelessWidget {
         children: [
           Container(
             width: 54,
-            height: 6,
+            height: 5,
             decoration: BoxDecoration(
               border: Border(
                 left: BorderSide(color: Colors.white.withValues(alpha: 0.7), width: 2),
@@ -587,10 +517,11 @@ class _ScaleBar extends StatelessWidget {
           ),
           const SizedBox(height: 3),
           Text(
-            '500 km',
+            'Mapbox Maps',
             style: GoogleFonts.inter(
               color: AppTheme.textSecondary,
               fontSize: 9,
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -599,34 +530,47 @@ class _ScaleBar extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Location Chip
+// ---------------------------------------------------------------------------
 class _CurrentLocationChip extends StatelessWidget {
   final String label;
+  final VoidCallback? onTap;
 
-  const _CurrentLocationChip({required this.label});
+  const _CurrentLocationChip({required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF10141C).withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: EventTheme.teal.withValues(alpha: 0.5)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.my_location_rounded, color: EventTheme.teal, size: 13),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        decoration: BoxDecoration(
+          color: const Color(0xFF10141C).withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: EventTheme.teal.withValues(alpha: 0.6)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.4),
+              blurRadius: 8,
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.my_location_rounded, color: EventTheme.teal, size: 14),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                color: Colors.white,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

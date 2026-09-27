@@ -67,9 +67,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Container(
-        width: size.width,
-        height: size.height,
+        width: double.infinity,
+        constraints: BoxConstraints(minHeight: size.height),
         decoration: const BoxDecoration(
           gradient: AppTheme.backgroundGradient,
         ),

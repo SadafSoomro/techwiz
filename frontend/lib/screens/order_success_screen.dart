@@ -113,7 +113,11 @@ class OrderSuccessScreen extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 20),
+
+          // --------------------------- tracking ---------------------------
+          OrderTrackerWidget(order: order),
+          const SizedBox(height: 20),
 
           // --------------------------- bill ---------------------------
           _Card(

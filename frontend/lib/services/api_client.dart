@@ -20,8 +20,29 @@ class ApiResult<T> {
 /// services. The JWT saved by the login flow is attached automatically, so the
 /// feature services only deal with JSON <-> model mapping.
 class ApiClient {
-  static Future<Map<String, String>> headers() async {
-    final token = await AuthStorage.getToken();
+  /// One long-lived client for the whole app.
+  ///
+  /// `http.get(...)` and friends create (and immediately close) a brand new
+  /// client per call, which throws away the underlying connection pool. Every
+  /// call then paid for a fresh TCP/TLS handshake, and with the Home screen
+  /// firing a dozen requests at once those handshakes queued up - the main
+  /// reason the first screen felt like it was "loading forever". A shared
+  /// client keeps the connections alive and reuses them.
+  static final http.Client _client = http.Client();
+
+  /// Per-request ceiling so a stalled backend can never freeze a screen.
+  static const Duration timeout = Duration(seconds: 15);
+
+  /// The shared, connection-reusing client.
+  ///
+  /// Every feature service (shop, events, community, AI, profile, content)
+  /// sends through this one instance, so the app keeps a single warm
+  /// connection pool instead of opening a brand new connection per request.
+  static http.Client get client => _client;
+
+  static Map<String, String> headers() {
+    // Served from memory by AuthStorage - no storage round trip per request.
+    final token = AuthStorage.tokenOrNull;
     return {
       'Content-Type': 'application/json',
       if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
@@ -39,22 +60,29 @@ class ApiClient {
       queryParameters: query?.map((k, v) => MapEntry(k, v?.toString() ?? '')),
     );
 
-    final requestHeaders = await headers();
+    final requestHeaders = headers();
     final encoded = body == null ? null : jsonEncode(body);
 
     late final http.Response response;
     switch (method) {
       case 'POST':
-        response = await http.post(uri, headers: requestHeaders, body: encoded);
+        response = await _client
+            .post(uri, headers: requestHeaders, body: encoded)
+            .timeout(timeout);
         break;
       case 'PUT':
-        response = await http.put(uri, headers: requestHeaders, body: encoded);
+        response = await _client
+            .put(uri, headers: requestHeaders, body: encoded)
+            .timeout(timeout);
         break;
       case 'DELETE':
-        response = await http.delete(uri, headers: requestHeaders, body: encoded);
+        response = await _client
+            .delete(uri, headers: requestHeaders, body: encoded)
+            .timeout(timeout);
         break;
       default:
-        response = await http.get(uri, headers: requestHeaders);
+        response =
+            await _client.get(uri, headers: requestHeaders).timeout(timeout);
     }
 
     if (response.body.isEmpty) {

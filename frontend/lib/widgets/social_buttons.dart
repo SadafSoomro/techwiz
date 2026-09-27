@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+
 class GoogleLogoWidget extends StatelessWidget {
   final double size;
 
@@ -8,37 +9,38 @@ class GoogleLogoWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      'assets/images/google_logo.png',
+    return SizedBox(
       width: size,
       height: size,
-      fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) {
-        // Fallback custom painted Google G logo if asset not loaded
-        return Container(
-          width: size,
-          height: size,
-          padding: const EdgeInsets.all(2),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Text(
+      child: Image.asset(
+        'assets/images/google_logo.png',
+        width: size,
+        height: size,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) {
+          // Fallback Google "G" logo
+          return Container(
+            width: size,
+            height: size,
+            padding: const EdgeInsets.all(2),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
                 'G',
                 style: TextStyle(
                   color: const Color(0xFF4285F4),
                   fontWeight: FontWeight.w900,
-                  fontSize: size * 0.7,
+                  fontSize: size * 0.65,
                   fontFamily: 'Roboto',
                 ),
               ),
-            ],
-          ),
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 }

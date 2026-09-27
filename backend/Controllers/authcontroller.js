@@ -6,6 +6,75 @@ import { OAuth2Client } from "google-auth-library";
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
+function buildEmailTemplate(title, description, code) {
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0d1117; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #ffffff;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #0d1117; padding: 40px 10px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" max-width="520" cellspacing="0" cellpadding="0" border="0" style="max-width: 520px; background: #161b22; border-radius: 20px; border: 1px solid #30363d; overflow: hidden; box-shadow: 0 15px 35px rgba(0,0,0,0.5);">
+          <!-- Header -->
+          <tr>
+            <td style="padding: 32px 25px 22px 25px; text-align: center; background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #ec4899 100%);">
+              <h1 style="margin: 0; font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: 2px; text-transform: uppercase;">
+                FANDOM VERSE
+              </h1>
+              <p style="margin: 4px 0 0 0; font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 500;">
+                Official Fan Merchandise & Community Hub
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 35px 30px;">
+              <h2 style="margin: 0 0 12px 0; font-size: 20px; color: #ffffff; text-align: center; font-weight: 700;">
+                ${title}
+              </h2>
+              <p style="margin: 0 0 25px 0; font-size: 14px; color: #9ca3af; text-align: center; line-height: 1.6;">
+                ${description}
+              </p>
+
+              <!-- OTP Code Box -->
+              <div style="background: rgba(99, 102, 241, 0.08); border: 2px dashed #6366f1; border-radius: 16px; padding: 22px 10px; text-align: center; margin-bottom: 25px;">
+                <span style="font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: 900; letter-spacing: 10px; color: #38bdf8; display: inline-block; padding-left: 10px;">
+                  ${code}
+                </span>
+              </div>
+
+              <p style="margin: 0 0 10px 0; font-size: 12.5px; color: #6b7280; text-align: center; line-height: 1.5;">
+                ⏰ This security code will expire shortly. Do not share this code with anyone.
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #4b5563; text-align: center;">
+                If you did not request this email, please ignore it or contact support.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 20px 30px; background-color: #0f172a; border-top: 1px solid #1e293b; text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #64748b;">
+                &copy; 2026 Fandom Verse App. All rights reserved.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+}
+
 // Register
 export const register = async (req, res) => {
   try {
@@ -33,8 +102,13 @@ export const register = async (req, res) => {
           await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: email,
-            subject: "Email Verification",
-            text: `Your verification code is ${verificationCode}`,
+            subject: "Email Verification Code - Fandom Verse",
+            text: `Your Fandom Verse verification code is: ${verificationCode}`,
+            html: buildEmailTemplate(
+              "Email Verification",
+              "Welcome to Fandom Verse! Use the security code below to verify your email address and activate your account.",
+              verificationCode
+            ),
           });
 
           res.status(201).json({
@@ -210,8 +284,13 @@ export const forgotPassword = (req, res) => {
           await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: email,
-            subject: "Password Reset Code",
-            text: `Your password reset code is ${resetCode}`,
+            subject: "Password Reset Code - Fandom Verse",
+            text: `Your Fandom Verse password reset code is: ${resetCode}`,
+            html: buildEmailTemplate(
+              "Password Reset Code",
+              "We received a request to reset your Fandom Verse account password. Use the security code below to complete your password reset.",
+              resetCode
+            ),
           });
 
           res.json({ message: "Reset code sent to your email" });

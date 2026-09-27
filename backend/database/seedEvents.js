@@ -1,13 +1,6 @@
 /**
  * MEMBER 4 - Events & Maps
- * Demo data seeder: venues (with real coordinates) + upcoming events so the
- * Events / Calendar / Map / Ticket screens are never empty.
- *
- * Run:  node database/seedEvents.js     (or)  npm run seed:events
- * Safe to run multiple times - existing rows are skipped.
- *
- * Event dates are generated relative to TODAY so the calendar always shows
- * upcoming events, no matter when the project is demoed.
+ * Demo data seeder: venues (with real coordinates across all cities) + upcoming events.
  */
 
 import db from "./db.js";
@@ -15,9 +8,6 @@ import { initEventsSchema } from "./eventsSchema.js";
 
 initEventsSchema();
 
-// ---------------------------------------------------------------------------
-// helper: date offset from today -> "YYYY-MM-DD"
-// ---------------------------------------------------------------------------
 function dayOffset(days) {
   const date = new Date();
   date.setDate(date.getDate() + days);
@@ -25,32 +15,50 @@ function dayOffset(days) {
 }
 
 // ---------------------------------------------------------------------------
-// venues - name, address, city, lat, lng, capacity
+// Comprehensive Venues List with Exact Real-World Coordinates
 // ---------------------------------------------------------------------------
 const venues = [
   ["Expo Centre Karachi", "University Road, Gulshan-e-Iqbal", "Karachi", 24.908, 67.085, 12000],
   ["Arts Council of Pakistan", "M.R. Kayani Road, Saddar", "Karachi", 24.872, 67.029, 2500],
+  ["Clifton Beach Fan Zone", "Sea View Road, Clifton", "Karachi", 24.813, 67.031, 5000],
   ["Packages Mall Expo Hall", "Walton Road", "Lahore", 31.474, 74.363, 5000],
-  ["Alhamra Arts Council", "Mall Road, GOR-1", "Lahore", 31.56, 74.332, 1800],
-  ["Pak-China Friendship Centre", "Garden Avenue, Shakarparian", "Islamabad", 33.697, 73.07, 6000],
+  ["Alhamra Arts Council", "Mall Road, GOR-1", "Lahore", 31.560, 74.332, 1800],
+  ["Emporium Mall Gaming Arena", "Abdul Haque Road, Johar Town", "Lahore", 31.467, 74.266, 3500],
+  ["Pak-China Friendship Centre", "Garden Avenue, Shakarparian", "Islamabad", 33.697, 73.070, 6000],
   ["Jinnah Convention Centre", "Blue Area, Jinnah Avenue", "Islamabad", 33.715, 73.065, 4000],
+  ["F-9 Park Amphitheatre", "Sector F-9", "Islamabad", 33.695, 73.018, 3000],
   ["Rawalpindi Sports Complex Hall", "Stadium Road", "Rawalpindi", 33.652, 73.078, 3000],
+  ["Saddar Fan Plaza", "Bank Road, Saddar", "Rawalpindi", 33.595, 73.054, 1500],
   ["Serena Hall Faisalabad", "Club Road, Civil Lines", "Faisalabad", 31.418, 73.079, 1500],
-  ["Multan Arts Council", "Shah Rukn-e-Alam Colony", "Multan", 30.192, 71.47, 1200],
+  ["Clock Tower Anime Plaza", "City Center", "Faisalabad", 31.418, 73.079, 1200],
+  ["Multan Arts Council", "Shah Rukn-e-Alam Colony", "Multan", 30.192, 71.470, 1200],
+  ["Multan Garrison Club", "Cantt Area", "Multan", 30.180, 71.450, 2000],
   ["Nishtar Hall Peshawar", "Nishtar Road", "Peshawar", 34.008, 71.578, 1400],
-  ["Serena Hotel Quetta", "Zarghoon Road", "Quetta", 30.19, 67.02, 900],
+  ["Peshawar University Arena", "Jamrud Road", "Peshawar", 33.998, 71.488, 2500],
+  ["Serena Hotel Quetta", "Zarghoon Road", "Quetta", 30.190, 67.020, 900],
+  ["Quetta Boy Scouts Hall", "Staff College Road", "Quetta", 30.200, 67.030, 1100],
+  ["Tokyo Big Sight", "3-11-1 Ariake, Koto City", "Tokyo", 35.630, 139.794, 50000],
+  ["Akihabara UDX Hall", "4-14-1 Sotokanda, Chiyoda City", "Tokyo", 35.698, 139.773, 8000],
+  ["Dubai World Trade Centre", "Sheikh Zayed Road", "Dubai", 25.226, 55.286, 15000],
+  ["ExCeL London", "Royal Victoria Dock", "London", 51.508, 0.028, 20000],
+  ["Javits Center NYC", "429 11th Ave", "New York", 40.758, -74.002, 30000],
 ];
 
 // ---------------------------------------------------------------------------
-// events
-// days      -> start offset from today
-// duration  -> number of days the event runs
+// Cloudinary Anime Image URLs
 // ---------------------------------------------------------------------------
+const ANIME_IMG = {
+  one_piece: "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1000&auto=format&fit=crop",
+  jjk: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=1000&auto=format&fit=crop",
+  demon_slayer: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1000&auto=format&fit=crop",
+  attack_on_titan: "https://images.unsplash.com/photo-1563089145-599997674d42?w=1000&auto=format&fit=crop",
+  anime_expo: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1000&auto=format&fit=crop",
+};
+
 const events = [
   {
     title: "One Piece Wano Finale Screening",
-    description:
-      "Big screen screening of the Wano arc finale with the Islamabad anime club. Cosplay is encouraged, and there is a fan theory panel right after the credits.",
+    description: "Big screen screening of the Wano arc finale with the anime club. Cosplay encouraged!",
     category: "Screening",
     city: "Islamabad",
     venue: "Pak-China Friendship Centre",
@@ -63,11 +71,11 @@ const events = [
     capacity: 600,
     attendees: 412,
     featured: 1,
+    image_url: ANIME_IMG.one_piece,
   },
   {
     title: "Cosplay Cosmos Meetup",
-    description:
-      "Open-air cosplay photoshoot and costume contest. Photographers on site, prop repair desk, and a beginners corner for first-time cosplayers.",
+    description: "Open-air cosplay photoshoot and costume contest with professional anime photographers.",
     category: "Cosplay Meetup",
     city: "Lahore",
     venue: "Alhamra Arts Council",
@@ -80,11 +88,11 @@ const events = [
     capacity: 800,
     attendees: 615,
     featured: 1,
+    image_url: ANIME_IMG.anime_expo,
   },
   {
-    title: "Jujutsu Kaisen Trivia Night",
-    description:
-      "Team trivia covering the manga and the anime, including hidden details and cursed technique mechanics. Winning team takes home official merch.",
+    title: "Jujutsu Kaisen Trivia & Gojo Fan Night",
+    description: "Team trivia covering the JJK manga, Domain Expansions and Cursed Technique mechanics.",
     category: "Fan Meetup",
     city: "Faisalabad",
     venue: "Serena Hall Faisalabad",
@@ -96,32 +104,15 @@ const events = [
     organizer: "Cursed Energy Club",
     capacity: 300,
     attendees: 188,
+    image_url: ANIME_IMG.jjk,
   },
   {
-    title: "K-Pop Night Live",
-    description:
-      "Live tribute stage, random dance play, and a lightstick sync section. Doors open an hour early for the fan merchandise bazaar.",
-    category: "Concert",
-    city: "Islamabad",
-    venue: "Jinnah Convention Centre",
-    days: 9,
-    duration: 1,
-    start: "17:00",
-    end: "23:00",
-    price: 3500,
-    organizer: "Seoul Beats PK",
-    capacity: 2500,
-    attendees: 1975,
-    featured: 1,
-  },
-  {
-    title: "Karachi Anime Fest 2026",
-    description:
-      "Three days of anime screenings, artist alley, cosplay championship, gaming zone and guest panels with manga creators and voice actors.",
+    title: "Karachi Anime Expo 2026",
+    description: "Three days of anime screenings, artist alley, cosplay championship, and voice actor panels.",
     category: "Fan Convention",
     city: "Karachi",
     venue: "Expo Centre Karachi",
-    days: 12,
+    days: 10,
     duration: 3,
     start: "10:00",
     end: "21:00",
@@ -130,202 +121,141 @@ const events = [
     capacity: 12000,
     attendees: 8640,
     featured: 1,
+    image_url: ANIME_IMG.anime_expo,
   },
   {
-    title: "AMV Editing Workshop",
-    description:
-      "Hands-on workshop on beat syncing, color grading and export settings. Bring a laptop with your editing software already installed.",
-    category: "Workshop",
-    city: "Karachi",
-    venue: "Arts Council of Pakistan",
-    days: 15,
-    duration: 1,
-    start: "11:00",
-    end: "17:00",
-    price: 1000,
-    organizer: "Frame by Frame Collective",
-    capacity: 120,
-    attendees: 96,
-  },
-  {
-    title: "VALORANT Community Cup",
-    description:
-      "Open bracket LAN tournament with a live shoutcaster desk. Bring your own peripherals, machines are provided by the venue.",
-    category: "Gaming Tournament",
-    city: "Karachi",
-    venue: "Arts Council of Pakistan",
-    days: 18,
-    duration: 2,
-    start: "12:00",
-    end: "22:00",
-    price: 1500,
-    organizer: "PK Esports League",
-    capacity: 400,
-    attendees: 322,
-  },
-  {
-    title: "Multan Fan Meetup",
-    description:
-      "Casual evening meetup for local fans. Trivia rounds, manga swap table and a screening of the community's top voted episode.",
-    category: "Fan Meetup",
-    city: "Multan",
-    venue: "Multan Arts Council",
-    days: 21,
-    duration: 1,
-    start: "16:00",
-    end: "21:00",
-    price: 0,
-    organizer: "Multan Otaku Circle",
-    capacity: 250,
-    attendees: 140,
-  },
-  {
-    title: "Indus Comic Con",
-    description:
-      "Comics, artists alley, collector halls and a retro gaming museum. Meet indie publishers and grab signed prints.",
-    category: "Comic Con",
-    city: "Lahore",
-    venue: "Packages Mall Expo Hall",
-    days: 25,
-    duration: 3,
-    start: "11:00",
-    end: "22:00",
-    price: 2000,
-    organizer: "Indus Conventions",
-    capacity: 5000,
-    attendees: 3610,
-    featured: 1,
-  },
-  {
-    title: "Naruto Marathon Screening",
-    description:
-      "Selected arcs back to back on the big screen with ramen stalls and a shinobi quiz between blocks.",
+    title: "Demon Slayer Movie Premiere Night",
+    description: "Exclusive IMAX screening of the new Demon Slayer arc with fan merch giveaways.",
     category: "Screening",
-    city: "Peshawar",
-    venue: "Nishtar Hall Peshawar",
-    days: 28,
+    city: "Karachi",
+    venue: "Arts Council of Pakistan",
+    days: 12,
     duration: 1,
-    start: "14:00",
-    end: "23:00",
-    price: 700,
-    organizer: "Peshawar Anime Society",
-    capacity: 500,
-    attendees: 264,
+    start: "19:30",
+    end: "22:30",
+    price: 1500,
+    organizer: "Karachi Film Society",
+    capacity: 2500,
+    attendees: 1890,
+    featured: 1,
+    image_url: ANIME_IMG.demon_slayer,
   },
   {
-    title: "Rawalpindi Gaming LAN Party",
-    description:
-      "Two days of LAN tournaments across fighting games, RTS and co-op shooters with open casual stations.",
+    title: "VALORANT & Gaming Championship",
+    description: "Open bracket esports tournament with shoutcasting and custom anime peripherals prize pool.",
     category: "Gaming Tournament",
+    city: "Lahore",
+    venue: "Emporium Mall Gaming Arena",
+    days: 14,
+    duration: 2,
+    start: "11:00",
+    end: "21:00",
+    price: 1000,
+    organizer: "Esports PK",
+    capacity: 3500,
+    attendees: 2100,
+    image_url: ANIME_IMG.jjk,
+  },
+  {
+    title: "Attack on Titan Final Arc Panel",
+    description: "Deep dive analysis into the themes, lore, and production of Attack on Titan.",
+    category: "Fan Meetup",
     city: "Rawalpindi",
     venue: "Rawalpindi Sports Complex Hall",
-    days: 31,
-    duration: 2,
-    start: "13:00",
-    end: "23:00",
-    price: 800,
-    organizer: "Twin Cities Gamers",
-    capacity: 600,
-    attendees: 371,
-  },
-  {
-    title: "Sci-Fi Cosplay Parade",
-    description:
-      "Street parade of sci-fi cosplayers followed by a costume judging round and a robotics showcase.",
-    category: "Cosplay Meetup",
-    city: "Islamabad",
-    venue: "Pak-China Friendship Centre",
-    days: 35,
+    days: 16,
     duration: 1,
     start: "16:00",
-    end: "21:00",
+    end: "19:00",
     price: 500,
-    organizer: "Galactic Guild",
-    capacity: 900,
-    attendees: 402,
-  },
-  {
-    title: "Marvel Trivia Championship",
-    description:
-      "Season finale of the trivia league. Sixteen teams, four rounds and a live audience buzzer round.",
-    category: "Fan Meetup",
-    city: "Lahore",
-    venue: "Alhamra Arts Council",
-    days: 40,
-    duration: 1,
-    start: "18:00",
-    end: "22:00",
-    price: 600,
-    organizer: "Multiverse Minds",
-    capacity: 700,
-    attendees: 521,
-  },
-  {
-    title: "Genshin Impact Tournament",
-    description:
-      "Co-op speedrun brackets and a spiral abyss challenge stage with community casting.",
-    category: "Gaming Tournament",
-    city: "Karachi",
-    venue: "Expo Centre Karachi",
-    days: 45,
-    duration: 2,
-    start: "11:00",
-    end: "21:00",
-    price: 1800,
-    organizer: "Teyvat Travellers PK",
+    organizer: "Scout Regiment Society",
     capacity: 1500,
-    attendees: 903,
+    attendees: 940,
+    image_url: ANIME_IMG.attack_on_titan,
   },
   {
-    title: "Winter Comic Bazaar",
-    description:
-      "Seasonal comics bazaar with graded back issues, indie zines and sketch commissions from local artists.",
-    category: "Comic Con",
-    city: "Islamabad",
-    venue: "Jinnah Convention Centre",
-    days: 52,
+    title: "Multan Manga & Cosplay Fair",
+    description: "Regional manga bazaar, costume showcase, and Japanese food stalls.",
+    category: "Cosplay Meetup",
+    city: "Multan",
+    venue: "Multan Arts Council",
+    days: 20,
+    duration: 1,
+    start: "14:00",
+    end: "20:00",
+    price: 300,
+    organizer: "Multan Otaku Circle",
+    capacity: 1200,
+    attendees: 720,
+    image_url: ANIME_IMG.anime_expo,
+  },
+  {
+    title: "Peshawar Anime & Gaming Con",
+    description: "Peshawar's biggest anime gathering featuring fighting game brackets and cosplay walk.",
+    category: "Fan Convention",
+    city: "Peshawar",
+    venue: "Nishtar Hall Peshawar",
+    days: 24,
     duration: 2,
     start: "10:00",
     end: "20:00",
-    price: 1500,
-    organizer: "Indus Conventions",
-    capacity: 3000,
-    attendees: 1180,
+    price: 800,
+    organizer: "KPK Gamers",
+    capacity: 1400,
+    attendees: 980,
+    image_url: ANIME_IMG.jjk,
   },
   {
-    title: "Quetta Fan Convention",
-    description:
-      "The first multi-fandom convention in Quetta: screenings, cosplay contest, gaming corner and a local artists alley.",
+    title: "Quetta Anime Festival 2026",
+    description: "Anime screenings, cosplay contest, and manga swap tables.",
     category: "Fan Convention",
     city: "Quetta",
     venue: "Serena Hotel Quetta",
-    days: 60,
-    duration: 2,
+    days: 28,
+    duration: 1,
+    start: "11:00",
+    end: "19:00",
+    price: 600,
+    organizer: "Quetta Anime Club",
+    capacity: 900,
+    attendees: 510,
+    image_url: ANIME_IMG.one_piece,
+  },
+  {
+    title: "Tokyo Anime Comiket 2026",
+    description: "World's largest fan convention with doujinshi creators and official studio booths.",
+    category: "Fan Convention",
+    city: "Tokyo",
+    venue: "Tokyo Big Sight",
+    days: 35,
+    duration: 3,
+    start: "09:00",
+    end: "18:00",
+    price: 3000,
+    organizer: "Comic Market Committee",
+    capacity: 50000,
+    attendees: 42000,
+    featured: 1,
+    image_url: ANIME_IMG.anime_expo,
+  },
+  {
+    title: "Dubai Comic Con & Gaming Fest",
+    description: "International pop culture festival featuring celebrity voice actors and gaming arenas.",
+    category: "Comic Con",
+    city: "Dubai",
+    venue: "Dubai World Trade Centre",
+    days: 42,
+    duration: 3,
     start: "10:00",
-    end: "20:00",
-    price: 900,
-    organizer: "Fandom Verse Events",
-    capacity: 1200,
-    attendees: 348,
+    end: "22:00",
+    price: 5000,
+    organizer: "Middle East Film Fest",
+    capacity: 15000,
+    attendees: 11200,
+    featured: 1,
+    image_url: ANIME_IMG.demon_slayer,
   },
 ];
 
-// ---------------------------------------------------------------------------
-// banner artwork (generated by frontend/tool/generate_banner_art.py)
-// ---------------------------------------------------------------------------
-const BANNERS = {
-  "Fan Convention": "assets/images/events/fan_convention.jpg",
-  "Cosplay Meetup": "assets/images/events/cosplay_meetup.jpg",
-  "Screening": "assets/images/events/screening.jpg",
-  "Gaming Tournament": "assets/images/events/gaming_tournament.jpg",
-  "Comic Con": "assets/images/events/comic_con.jpg",
-  "Concert": "assets/images/events/concert.jpg",
-  "Fan Meetup": "assets/images/events/fan_meetup.jpg",
-  "Workshop": "assets/images/events/workshop.jpg",
-};
-const DEFAULT_BANNER = "assets/images/events/default.jpg";
-
-// ---------------------------------------------------------------------------
 function runAsync(sql, params = []) {
   return new Promise((resolve, reject) => {
     db.run(sql, params, function (err) {
@@ -345,7 +275,8 @@ function getAsync(sql, params = []) {
 }
 
 async function seed() {
-  // ------------------------------ venues ------------------------------
+  console.log("Seeding venues and multi-city events...");
+
   for (const [name, address, city, lat, lng, capacity] of venues) {
     const existing = await getAsync(
       `SELECT id FROM venues WHERE name = ? AND city_name = ?`,
@@ -361,12 +292,19 @@ async function seed() {
     }
   }
 
-  // ------------------------------ events ------------------------------
   for (const event of events) {
     const existing = await getAsync(`SELECT id FROM events WHERE title = ?`, [
       event.title,
     ]);
-    if (existing) continue;
+    if (existing) {
+      await runAsync(
+        `UPDATE events SET
+          city_name = ?, venue_name = ?, image_url = ?
+         WHERE title = ?`,
+        [event.city, event.venue, event.image_url, event.title]
+      );
+      continue;
+    }
 
     const link = `https://fandomverse.app/tickets/${event.title
       .toLowerCase()
@@ -393,7 +331,7 @@ async function seed() {
         dayOffset(event.days + Math.max(0, event.duration - 1)),
         event.start,
         event.end,
-        BANNERS[event.category] || DEFAULT_BANNER,
+        event.image_url,
         link,
         event.price,
         event.organizer,
@@ -402,21 +340,10 @@ async function seed() {
         event.featured || 0,
       ]
     );
-    console.log(`  + event: ${event.title}`);
+    console.log(`  + event: ${event.title} (${event.city})`);
   }
 
-  // banner artwork: keeps existing databases in sync too
-  for (const [category, banner] of Object.entries(BANNERS)) {
-    await runAsync(`UPDATE events SET image_url = ? WHERE category = ?`, [
-      banner,
-      category,
-    ]);
-  }
-  await runAsync(`UPDATE events SET image_url = ? WHERE image_url IS NULL`, [
-    DEFAULT_BANNER,
-  ]);
-
-  // copy coordinates + address from the matching venue row
+  // Update coordinates from matching venue row
   await runAsync(`
     UPDATE events SET
       latitude  = (SELECT v.latitude  FROM venues v
@@ -425,72 +352,13 @@ async function seed() {
                    WHERE v.name = events.venue_name AND v.city_name = events.city_name),
       address   = (SELECT v.address   FROM venues v
                    WHERE v.name = events.venue_name AND v.city_name = events.city_name)
-    WHERE latitude IS NULL
   `);
 
-  // ------------------ demo ticket + saved event for Emma ------------------
-  const emma = await getAsync(`SELECT id FROM users WHERE email = ?`, [
-    "emma@fandomverse.com",
-  ]);
-
-  if (emma) {
-    const firstEvent = await getAsync(
-      `SELECT id, title, ticket_price FROM events ORDER BY event_date ASC LIMIT 1`
-    );
-
-    if (firstEvent) {
-      const existingTicket = await getAsync(
-        `SELECT id FROM event_tickets WHERE user_id = ? AND event_id = ?`,
-        [emma.id, firstEvent.id]
-      );
-
-      if (!existingTicket) {
-        await runAsync(
-          `INSERT INTO event_tickets
-             (event_id, user_id, quantity, unit_price, total_price, currency,
-              ticket_code, seat_number, status)
-           VALUES (?, ?, 2, ?, ?, 'PKR', ?, 'GATE A · ROW 4', 'confirmed')`,
-          [
-            firstEvent.id,
-            emma.id,
-            firstEvent.ticket_price,
-            firstEvent.ticket_price * 2,
-            `FV-${String(firstEvent.id).padStart(4, "0")}-0001`,
-          ]
-        );
-
-        await runAsync(
-          `INSERT INTO notifications (user_id, actor_id, type, message, reference_id)
-           VALUES (?, NULL, 'system', ?, ?)`,
-          [
-            emma.id,
-            `Your ticket for "${firstEvent.title}" is confirmed. Show the ticket screen at the gate.`,
-            firstEvent.id,
-          ]
-        );
-        console.log(`  + ticket for Emma: ${firstEvent.title}`);
-      }
-    }
-
-    const secondEvent = await getAsync(
-      `SELECT id FROM events ORDER BY event_date ASC LIMIT 1 OFFSET 2`
-    );
-
-    if (secondEvent) {
-      await runAsync(
-        `INSERT OR IGNORE INTO saved_events (user_id, event_id) VALUES (?, ?)`,
-        [emma.id, secondEvent.id]
-      );
-    }
-  }
-
-  console.log("\n✅ Events seed complete.");
-  console.log("   Demo login : emma@fandomverse.com  /  Fandom@123\n");
-
+  console.log("✅ Venues and events seed complete.");
   db.close();
 }
 
-seed().catch((error) => {
-  console.error("Events seed failed:", error.message);
+seed().catch((err) => {
+  console.error("Seed error:", err);
   db.close();
 });

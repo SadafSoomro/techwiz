@@ -6,6 +6,7 @@ import '../models/shop_models.dart';
 import '../providers/shop_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/shop_theme.dart';
+import '../widgets/app_image.dart' show decodeCacheWidth;
 import '../widgets/product_card.dart';
 import '../widgets/shop_animated.dart';
 import '../widgets/shop_scaffold.dart';
@@ -170,7 +171,7 @@ class _ShopScreenState extends State<ShopScreen> {
         onRefresh: _refresh,
         child: ListView(
           controller: _scrollController,
-          padding: const EdgeInsets.only(bottom: 30),
+          padding: EdgeInsets.only(bottom: widget.embedded ? 95 : 30),
           children: [
             // ------------------------- hero banner -------------------------
             const Padding(
@@ -609,7 +610,7 @@ class _ShopScreenState extends State<ShopScreen> {
           crossAxisCount: 2,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: 0.60,
+          childAspectRatio: 0.52,
         ),
         itemBuilder: (context, index) {
           final product = products[index];
@@ -633,7 +634,7 @@ class _ShopScreenState extends State<ShopScreen> {
   /// shelves so they animate like the deals carousel).
   Widget _buildAutoGrid(List<Product> products) {
     return SizedBox(
-      height: 276,
+      height: 318,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -671,7 +672,7 @@ class _ShopScreenState extends State<ShopScreen> {
           crossAxisCount: 2,
           mainAxisSpacing: 12,
           crossAxisSpacing: 12,
-          childAspectRatio: 0.60,
+          childAspectRatio: 0.52,
         ),
         itemBuilder: (context, index) => const ProductCardSkeleton(),
       ),
@@ -711,6 +712,10 @@ class _ShopHeroBanner extends StatelessWidget {
               child: Image.asset(
                 ShopTheme.heroBanner,
                 fit: BoxFit.cover,
+                cacheWidth: decodeCacheWidth(
+                  context,
+                  width: MediaQuery.sizeOf(context).width,
+                ),
                 errorBuilder: (context, error, stack) =>
                     const SizedBox.shrink(),
               ),

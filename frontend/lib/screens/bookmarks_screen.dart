@@ -125,7 +125,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
 
   Widget _buildList(List<CommunityPost> bookmarks) {
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      padding: EdgeInsets.fromLTRB(16, 4, 16, widget.embedded ? 95 : 24),
       itemCount: bookmarks.length,
       itemBuilder: (context, index) {
         final post = bookmarks[index];
@@ -147,7 +147,7 @@ class _BookmarksScreenState extends State<BookmarksScreen> {
 
   Widget _buildGrid(List<CommunityPost> bookmarks) {
     return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+      padding: EdgeInsets.fromLTRB(16, 4, 16, widget.embedded ? 95 : 24),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         mainAxisSpacing: 12,

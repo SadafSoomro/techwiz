@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/event_theme.dart';
+import 'app_image.dart' show decodeCacheWidth, resolveImageWidth;
 
 /// MEMBER 4 - Events & Maps
 /// Renders an event banner image.
@@ -50,57 +51,71 @@ class EventBannerImage extends StatelessWidget {
   Widget build(BuildContext context) {
     final corners = borderRadius ?? BorderRadius.circular(18);
 
-    Widget content;
-    if (_isAsset) {
-      content = Image.asset(
-        _resolved,
-        height: height,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _fallback(),
-      );
-    } else if (_isRemote) {
-      content = Image.network(
-        _resolved,
-        height: height,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        loadingBuilder: (context, child, progress) =>
-            progress == null ? child : _fallback(),
-        errorBuilder: (_, _, _) => _fallback(),
-      );
-    } else {
-      content = _fallback();
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Full-bleed banners report their real width here, so the decode is
+        // sized to what is actually painted.
+        final cacheWidth = decodeCacheWidth(
+          context,
+          width: resolveImageWidth(constraints, null),
+          height: height,
+        );
 
-    return ClipRRect(
-      borderRadius: corners,
-      child: SizedBox(
-        height: height,
-        width: double.infinity,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            content,
-            if (scrim)
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.18),
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.55),
-                    ],
-                    stops: const [0.0, 0.45, 1.0],
+        Widget content;
+        if (_isAsset) {
+          content = Image.asset(
+            _resolved,
+            height: height,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            cacheWidth: cacheWidth,
+            errorBuilder: (_, _, _) => _fallback(),
+          );
+        } else if (_isRemote) {
+          content = Image.network(
+            _resolved,
+            height: height,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            cacheWidth: cacheWidth,
+            loadingBuilder: (context, child, progress) =>
+                progress == null ? child : _fallback(),
+            errorBuilder: (_, _, _) => _fallback(),
+          );
+        } else {
+          content = _fallback();
+        }
+
+        return ClipRRect(
+          borderRadius: corners,
+          child: SizedBox(
+            height: height,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                content,
+                if (scrim)
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.18),
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.55),
+                        ],
+                        stops: const [0.0, 0.45, 1.0],
+                      ),
+                    ),
                   ),
-                ),
-              ),
-            ?overlay,
-          ],
-        ),
-      ),
+                ?overlay,
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

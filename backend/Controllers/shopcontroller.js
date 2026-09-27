@@ -16,9 +16,13 @@
  * SQLite is used for storage and caching (database/cache.js).
  */
 
+import Stripe from "stripe";
 import { all, get, run, asyncHandler, timeAgo } from "../database/dbhelpers.js";
 import cache from "../database/cache.js";
 import { notify } from "../utils/notify.js";
+
+const stripeKey = process.env.STRIPE_SECRET_KEY || "";
+const stripe = stripeKey ? new Stripe(stripeKey) : null;
 
 // ---------------------------------------------------------------------------
 // store rules (kept in one place so the bill maths is easy to follow)
@@ -39,8 +43,8 @@ export const PROMO_CODES = {
 };
 
 export const PAYMENT_METHODS = [
-  "Cash on Delivery (simulated)",
-  "Card (simulated)",
+  "Credit / Debit Card (Stripe)",
+  "Cash on Delivery",
   "Wallet (simulated)",
 ];
 
@@ -1032,14 +1036,76 @@ export const checkout = asyncHandler(async (req, res) => {
     ? body.payment_method
     : PAYMENT_METHODS[0];
 
+  let stripePaymentId = null;
+  let orderStatus = "placed";
+
+  if (paymentMethod.includes("Stripe") || paymentMethod.includes("Card")) {
+    if (!stripe) {
+      return res.status(400).json({
+        success: false,
+        message: "Stripe API key is not configured in backend environment (.env)",
+      });
+    }
+
+    try {
+      const rawCard = String(body.card_number || "").replace(/\s+/g, "");
+      const cardNumber = rawCard || "4242424242424242";
+      const expMonth = parseInt(body.exp_month, 10) || 12;
+      const expYear = parseInt(body.exp_year, 10) || 2028;
+      const cvc = String(body.cvc || "123").trim();
+
+      const pm = await stripe.paymentMethods.create({
+        type: "card",
+        card: {
+          number: cardNumber,
+          exp_month: expMonth,
+          exp_year: expYear,
+          cvc: cvc,
+        },
+      });
+
+      const amountInCents = Math.round(bill.total * 100);
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.max(50, amountInCents),
+        currency: (bill.currency || "usd").toLowerCase(),
+        payment_method: pm.id,
+        confirm: true,
+        automatic_payment_methods: {
+          enabled: true,
+          allow_redirects: "never",
+        },
+        metadata: {
+          userId: String(userId),
+          shippingName: shippingName || "",
+        },
+      });
+
+      if (paymentIntent.status !== "succeeded") {
+        return res.status(400).json({
+          success: false,
+          message: `Stripe payment failed with status: ${paymentIntent.status}`,
+        });
+      }
+
+      stripePaymentId = paymentIntent.id;
+      orderStatus = "paid";
+    } catch (err) {
+      console.error("Stripe payment error:", err.message);
+      return res.status(400).json({
+        success: false,
+        message: `Stripe Payment Error: ${err.message}`,
+      });
+    }
+  }
+
   const orderCode = makeOrderCode();
 
   const order = await run(
     `INSERT INTO orders
        (user_id, order_code, item_count, subtotal, discount, shipping_fee, total,
-        currency, status, payment_method, shipping_name, shipping_phone,
+        currency, status, payment_method, stripe_payment_id, shipping_name, shipping_phone,
         shipping_city, shipping_address, note)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'placed', ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       userId,
       orderCode,
@@ -1049,7 +1115,9 @@ export const checkout = asyncHandler(async (req, res) => {
       bill.shipping_fee,
       bill.total,
       bill.currency,
+      orderStatus,
       paymentMethod,
+      stripePaymentId,
       shippingName || null,
       phone || null,
       shippingCity || null,

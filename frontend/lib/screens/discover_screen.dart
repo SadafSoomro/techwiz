@@ -336,7 +336,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               ),
           ],
 
-          const SliverToBoxAdapter(child: SizedBox(height: 30)),
+          SliverToBoxAdapter(
+            child: SizedBox(height: widget.embedded ? 95 : 30),
+          ),
         ],
       ),
     );

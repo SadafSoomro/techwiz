@@ -4,12 +4,9 @@ import 'package:provider/provider.dart';
 
 import '../models/content_models.dart';
 import '../models/profile_models.dart';
-import '../providers/ai_provider.dart';
 import '../providers/community_provider.dart';
 import '../providers/content_provider.dart';
-import '../providers/event_provider.dart';
 import '../providers/profile_provider.dart';
-import '../providers/shop_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/content_theme.dart';
 import '../theme/event_theme.dart';
@@ -70,29 +67,20 @@ class _HomeScreenState extends State<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
 
+      // Only the data the *visible* tab needs is fetched here.
+      //
+      // Previously this method also kicked off discover, community overview,
+      // events (x2), shop (x4) and the AI helper - roughly a dozen requests
+      // racing each other on startup, on top of the six tab screens that
+      // IndexedStack built immediately. Each tab now loads its own data the
+      // first time it is opened instead (see _LazyIndexedStack below).
+
       // MEMBER 1 - Profile & Home dashboard aggregate.
       context.read<ProfileProvider>().loadDashboard();
 
-      // MEMBER 2 - Fandom content (Discover rail).
-      context.read<ContentProvider>().loadDiscover();
-
-      // MEMBER 3 - Search & Community.
-      final community = context.read<CommunityProvider>();
-      community.refreshUnreadCount();
-      community.loadOverview();
-
-      // MEMBER 4 - Events & Maps.
-      final events = context.read<EventProvider>();
-      events.loadOverview();
-      events.loadEvents();
-
-      // MEMBER 5 - Merchandise Store + AI Fan Helper.
-      final shop = context.read<ShopProvider>();
-      shop.loadOverview();
-      shop.loadFilters();
-      shop.loadProducts();
-      shop.loadPersonal();
-      context.read<AiProvider>().initialise(restoreHistory: false);
+      // The Home header shows an unread-notification badge. This is a single
+      // lightweight call, so it stays on the startup path.
+      context.read<CommunityProvider>().refreshUnreadCount();
     });
   }
 
@@ -119,24 +107,24 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Positioned.fill(
               child: SafeArea(
-                child: IndexedStack(
+                child: _LazyIndexedStack(
                   index: _currentIndex,
-                  children: [
-                    _HomeDashboardTab(onOpenTab: _openTab),
-                    const DiscoverScreen(embedded: true),
-                    const EventsScreen(embedded: true),
-                    const ShopScreen(embedded: true),
-                    const BookmarksScreen(embedded: true),
-                    const ProfileScreen(embedded: true),
-                  ],
+                  itemBuilder: (context, index) => switch (index) {
+                    0 => _HomeDashboardTab(onOpenTab: _openTab),
+                    1 => const DiscoverScreen(embedded: true),
+                    2 => const EventsScreen(embedded: true),
+                    3 => const ShopScreen(embedded: true),
+                    4 => const BookmarksScreen(embedded: true),
+                    _ => const ProfileScreen(embedded: true),
+                  },
                 ),
               ),
             ),
 
             // MEMBER 5 - AI Fan Helper: its own little companion, floating
-            // just above the bottom bar on the left, kept apart from the tabs.
+            // just above the bottom bar on the right side (above Profile icon).
             Positioned(
-              left: 14,
+              right: 14,
               bottom: 12,
               child: AiAgentButton(onTap: _openAiHelper),
             ),
@@ -152,6 +140,60 @@ class _HomeScreenState extends State<HomeScreen> {
           onSelect: _openTab,
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// lazy tab host
+// ---------------------------------------------------------------------------
+/// A drop-in replacement for [IndexedStack] that only builds a tab once it has
+/// actually been opened.
+///
+/// [IndexedStack] builds *every* child up front. With six heavyweight tabs that
+/// meant six full widget trees (and six `initState` methods, each firing its
+/// own network calls) were created during the very first frame - the app sat on
+/// a frozen splash while all of that was going on. Here the unvisited tabs are
+/// cheap placeholders, so the first frame renders the Home tab alone.
+///
+/// Tabs that have been opened stay in the tree, so their scroll position and
+/// state are preserved afterwards.
+class _LazyIndexedStack extends StatefulWidget {
+  const _LazyIndexedStack({required this.index, required this.itemBuilder});
+
+  final int index;
+  final Widget Function(BuildContext context, int index) itemBuilder;
+
+  @override
+  State<_LazyIndexedStack> createState() => _LazyIndexedStackState();
+}
+
+class _LazyIndexedStackState extends State<_LazyIndexedStack> {
+  /// Indices that have been shown at least once.
+  final Set<int> _visited = <int>{};
+
+  @override
+  Widget build(BuildContext context) {
+    // Build the active tab (and keep every previously visited one alive).
+    _visited.add(widget.index);
+
+    return IndexedStack(
+      index: widget.index,
+      children: [
+        for (var index = 0; index < 6; index++)
+          if (!_visited.contains(index))
+            const SizedBox.shrink()
+          else
+            // Pause every animation inside the tabs that are not on screen.
+            // The tabs stay alive (so scroll position and state survive), but
+            // their shimmer / floating / shine controllers stop ticking, which
+            // is what keeps the app idle and stops the hidden screens from
+            // stealing frames from the one you are actually looking at.
+            TickerMode(
+              enabled: index == widget.index,
+              child: widget.itemBuilder(context, index),
+            ),
+      ],
     );
   }
 }
@@ -405,7 +447,7 @@ class _HomeDashboardTab extends StatelessWidget {
         await content.loadDiscover();
       },
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 30),
+        padding: const EdgeInsets.fromLTRB(18, 16, 18, 95),
         physics: const BouncingScrollPhysics(),
         children: [
           // ------------------------------------------------ app bar
@@ -661,22 +703,26 @@ class _HomeDashboardTab extends StatelessWidget {
                     _quickTile(context, 'News', Icons.newspaper_rounded,
                         ContentTheme.amber,
                         () => _push(context,
-                            const NewsListScreen(title: 'News'))),
+                            const NewsListScreen(title: 'News')),
+                        imagePath: 'assets/images/content/news_01.jpg'),
                     const SizedBox(width: 12),
                     _quickTile(context, 'Gallery', Icons.photo_library_rounded,
                         ContentTheme.rose,
-                        () => _push(context, const GalleryScreen())),
+                        () => _push(context, const GalleryScreen()),
+                        imagePath: 'assets/images/content/news_05.jpg'),
                   ],
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
                     _quickTile(context, 'Videos', Icons.play_circle_rounded,
-                        ContentTheme.violet, () => onOpenTab(1)),
+                        ContentTheme.violet, () => onOpenTab(1),
+                        imagePath: 'assets/images/content/video_01.jpg'),
                     const SizedBox(width: 12),
                     _quickTile(context, 'Podcasts', Icons.podcasts_rounded,
                         ContentTheme.primary,
-                        () => _push(context, const PodcastsScreen())),
+                        () => _push(context, const PodcastsScreen()),
+                        imagePath: 'assets/images/content/podcast_01.jpg'),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -684,11 +730,13 @@ class _HomeDashboardTab extends StatelessWidget {
                   children: [
                     _quickTile(context, 'Fandom Hub', Icons.explore_rounded,
                         ContentTheme.secondary,
-                        () => _push(context, const FandomHubScreen())),
+                        () => _push(context, const FandomHubScreen()),
+                        imagePath: 'assets/images/fandoms/anime.jpg'),
                     const SizedBox(width: 12),
                     _quickTile(context, 'Library', Icons.history_rounded,
                         ContentTheme.primaryDark,
-                        () => _push(context, const RecentContentScreen())),
+                        () => _push(context, const RecentContentScreen()),
+                        imagePath: 'assets/images/content/news_02.jpg'),
                   ],
                 ),
               ],
@@ -763,11 +811,13 @@ class _HomeDashboardTab extends StatelessWidget {
                     _quickTile(context, 'Trending',
                         Icons.local_fire_department_rounded,
                         AppTheme.secondaryColor,
-                        () => _push(context, const TrendingScreen())),
+                        () => _push(context, const TrendingScreen()),
+                        imagePath: 'assets/images/content/video_02.jpg'),
                     const SizedBox(width: 12),
                     _quickTile(context, 'Deep Dive',
                         Icons.auto_awesome_rounded, AppTheme.primaryColor,
-                        () => _push(context, const DiscussionsScreen())),
+                        () => _push(context, const DiscussionsScreen()),
+                        imagePath: 'assets/images/content/news_03.jpg'),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -775,11 +825,13 @@ class _HomeDashboardTab extends StatelessWidget {
                   children: [
                     _quickTile(context, 'Search', Icons.search_rounded,
                         AppTheme.accentCyan,
-                        () => _push(context, const SearchScreen())),
+                        () => _push(context, const SearchScreen()),
+                        imagePath: 'assets/images/content/news_06.jpg'),
                     const SizedBox(width: 12),
                     _quickTile(context, 'Bookmarks',
                         Icons.bookmark_rounded, Colors.amber,
-                        () => onOpenTab(4)),
+                        () => onOpenTab(4),
+                        imagePath: 'assets/images/fandoms/comics.jpg'),
                   ],
                 ),
               ],
@@ -809,11 +861,13 @@ class _HomeDashboardTab extends StatelessWidget {
                   children: [
                     _quickTile(context, 'Map', Icons.map_rounded,
                         EventTheme.teal,
-                        () => _push(context, const EventMapScreen())),
+                        () => _push(context, const EventMapScreen()),
+                        imagePath: 'assets/images/events/cosplay_meetup.jpg'),
                     const SizedBox(width: 12),
                     _quickTile(context, 'Calendar', Icons.calendar_month_rounded,
                         EventTheme.amber,
-                        () => _push(context, const EventCalendarScreen())),
+                        () => _push(context, const EventCalendarScreen()),
+                        imagePath: 'assets/images/events/fan_convention.jpg'),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -821,11 +875,13 @@ class _HomeDashboardTab extends StatelessWidget {
                   children: [
                     _quickTile(context, 'Categories', Icons.category_rounded,
                         EventTheme.primary,
-                        () => _push(context, const EventCategoriesScreen())),
+                        () => _push(context, const EventCategoriesScreen()),
+                        imagePath: 'assets/images/events/anime_expo_2025.jpg'),
                     const SizedBox(width: 12),
                     _quickTile(context, 'Interested', Icons.favorite_rounded,
                         EventTheme.secondary,
-                        () => _push(context, const SavedEventsScreen())),
+                        () => _push(context, const SavedEventsScreen()),
+                        imagePath: 'assets/images/events/gaming_tournament.jpg'),
                   ],
                 ),
               ],
@@ -914,112 +970,142 @@ class _HomeDashboardTab extends StatelessWidget {
     final stats = context.watch<ProfileProvider>().stats;
 
     return Container(
-      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: ProfileTheme.headerGradient,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: ProfileTheme.primary.withValues(alpha: 0.3),
+            color: ProfileTheme.primary.withValues(alpha: 0.35),
             blurRadius: 20,
             offset: const Offset(0, 9),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${context.watch<ProfileProvider>().dashboard?.greeting ?? 'Welcome'}, ${user.name.split(' ').first}!',
-                      style: GoogleFonts.outfit(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Ready to explore your fandoms?',
-                      style: GoogleFonts.inter(
-                        color: Colors.white.withValues(alpha: 0.85),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: AppImage(
+                path: 'assets/images/fandoms/anime.jpg',
+                fit: BoxFit.cover,
+                fallbackColors: const [Color(0xFF3B82F6), Color(0xFF8B5CF6)],
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            ),
+            Positioned.fill(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(14),
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.28)),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      'Lv ${user.level}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      ProfileTheme.levelName(user.level),
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 8.5,
-                      ),
-                    ),
-                  ],
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF0D111D).withValues(alpha: 0.92),
+                      const Color(0xFF1D4ED8).withValues(alpha: 0.82),
+                      const Color(0xFF8B5CF6).withValues(alpha: 0.75),
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              _greetingStat(Icons.workspace_premium_rounded,
-                  '${user.points}', 'Points'),
-              Container(
-                width: 1,
-                height: 28,
-                color: Colors.white.withValues(alpha: 0.22),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${context.watch<ProfileProvider>().dashboard?.greeting ?? 'Welcome'}, ${user.name.split(' ').first}!',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Ready to explore your fandoms?',
+                              style: GoogleFonts.inter(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(14),
+                          border:
+                              Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Lv ${user.level}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              ProfileTheme.levelName(user.level),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 8.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      _greetingStat(Icons.workspace_premium_rounded,
+                          '${user.points}', 'Points'),
+                      Container(
+                        width: 1,
+                        height: 28,
+                        color: Colors.white.withValues(alpha: 0.22),
+                      ),
+                      _greetingStat(Icons.auto_awesome_rounded,
+                          '${stats.fandomCount}', 'Fandoms'),
+                      Container(
+                        width: 1,
+                        height: 28,
+                        color: Colors.white.withValues(alpha: 0.22),
+                      ),
+                      _greetingStat(Icons.task_alt_rounded,
+                          '${stats.completedTasks}/${stats.totalTasks}', 'Tasks'),
+                      Container(
+                        width: 1,
+                        height: 28,
+                        color: Colors.white.withValues(alpha: 0.22),
+                      ),
+                      _greetingStat(Icons.download_done_rounded,
+                          '${stats.offlineCount}', 'Offline'),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  AnimatedProgressBar(
+                    value: user.levelProgress,
+                    height: 6,
+                    colors: const [Colors.white, Color(0xFFE0E7FF)],
+                  ),
+                ],
               ),
-              _greetingStat(Icons.auto_awesome_rounded,
-                  '${stats.fandomCount}', 'Fandoms'),
-              Container(
-                width: 1,
-                height: 28,
-                color: Colors.white.withValues(alpha: 0.22),
-              ),
-              _greetingStat(Icons.task_alt_rounded,
-                  '${stats.completedTasks}/${stats.totalTasks}', 'Tasks'),
-              Container(
-                width: 1,
-                height: 28,
-                color: Colors.white.withValues(alpha: 0.22),
-              ),
-              _greetingStat(Icons.download_done_rounded,
-                  '${stats.offlineCount}', 'Offline'),
-            ],
-          ),
-          const SizedBox(height: 12),
-          AnimatedProgressBar(
-            value: user.levelProgress,
-            height: 6,
-            colors: const [Colors.white, Color(0xFFE0E7FF)],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1092,62 +1178,100 @@ class _HomeDashboardTab extends StatelessWidget {
     return PressScale(
       onTap: () => _push(context, const SocialTasksScreen()),
       child: Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: ProfileTheme.card,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: ProfileTheme.green.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(Icons.task_alt_rounded,
-                  color: ProfileTheme.green, size: 20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+          boxShadow: [
+            BoxShadow(
+              color: ProfileTheme.green.withValues(alpha: 0.2),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
             ),
-            const SizedBox(width: 13),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Social & Tasks',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '$completed/$total',
-                        style: const TextStyle(
-                          color: ProfileTheme.textSecondary,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 9),
-                  AnimatedProgressBar(
-                    value: completed / total,
-                    height: 8,
-                    colors: const [ProfileTheme.green, ProfileTheme.cyan],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.chevron_right_rounded,
-                color: ProfileTheme.textMuted, size: 20),
           ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: AppImage(
+                  path: 'assets/images/products/naruto_sage_figure.jpg',
+                  fit: BoxFit.cover,
+                  fallbackColors: const [ProfileTheme.card, ProfileTheme.cardAlt],
+                ),
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.9),
+                        Colors.black.withValues(alpha: 0.75),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: ProfileTheme.green.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: ProfileTheme.green.withValues(alpha: 0.5)),
+                      ),
+                      child: const Icon(Icons.task_alt_rounded,
+                          color: ProfileTheme.green, size: 20),
+                    ),
+                    const SizedBox(width: 13),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  'Social & Tasks',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                '$completed/$total',
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 9),
+                          AnimatedProgressBar(
+                            value: completed / total,
+                            height: 8,
+                            colors: const [ProfileTheme.green, ProfileTheme.cyan],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.chevron_right_rounded,
+                        color: Colors.white70, size: 20),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1177,93 +1301,112 @@ class _HomeDashboardTab extends StatelessWidget {
       );
     }
 
+    final image = event.imageUrl.isNotEmpty ? event.imageUrl : 'assets/images/events/anime_expo_2025.jpg';
+
     return PressScale(
       onTap: () => onOpenTab(2),
       child: Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: EventTheme.featuredGradient,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: EventTheme.primary.withValues(alpha: 0.34),
+              color: EventTheme.primary.withValues(alpha: 0.35),
               blurRadius: 18,
               offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: Stack(
-          children: [
-            Positioned(
-              right: -22,
-              bottom: -26,
-              child: Icon(
-                EventTheme.categoryIcon(event.category),
-                size: 116,
-                color: Colors.white.withValues(alpha: 0.15),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: AppImage(
+                  path: image,
+                  fit: BoxFit.cover,
+                  fallbackColors: [EventTheme.primary, EventTheme.secondary],
+                ),
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              Positioned.fill(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.32),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    'NEXT EVENT · ${event.eventDate}',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.3),
+                        Colors.black.withValues(alpha: 0.88),
+                      ],
+                      stops: const [0.2, 1],
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(
-                  event.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.outfit(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    height: 1.25,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.location_on_rounded,
-                        color: Colors.white70, size: 13),
-                    const SizedBox(width: 5),
-                    Expanded(
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: EventTheme.primary.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: Text(
-                        '${event.venue}, ${event.city}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        'NEXT EVENT · ${event.eventDate}',
                         style: GoogleFonts.inter(
-                          color: Colors.white70,
-                          fontSize: 11.5,
+                          color: Colors.white,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
+                    const SizedBox(height: 10),
                     Text(
-                      event.category,
-                      style: GoogleFonts.inter(
+                      event.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.outfit(
                         color: Colors.white,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                        height: 1.25,
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on_rounded,
+                            color: Colors.white70, size: 13),
+                        const SizedBox(width: 5),
+                        Expanded(
+                          child: Text(
+                            '${event.venue}, ${event.city}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.inter(
+                              color: Colors.white70,
+                              fontSize: 11.5,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          event.category,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1274,42 +1417,81 @@ class _HomeDashboardTab extends StatelessWidget {
     String label,
     IconData icon,
     Color color,
-    VoidCallback onTap,
-  ) {
+    VoidCallback onTap, {
+    String? imagePath,
+  }) {
     return Expanded(
       child: PressScale(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 15),
+          height: 56,
           decoration: BoxDecoration(
-            color: AppTheme.cardColor,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.18),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 17),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.2),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
               ),
             ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (imagePath != null && imagePath.isNotEmpty)
+                  AppImage(
+                    path: imagePath,
+                    fit: BoxFit.cover,
+                    fallbackColors: [color, AppTheme.cardColor],
+                  )
+                else
+                  Container(color: AppTheme.cardColor),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.88),
+                        Colors.black.withValues(alpha: 0.6),
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.35),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                        ),
+                        child: Icon(icon, color: Colors.white, size: 16),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

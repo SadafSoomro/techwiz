@@ -594,6 +594,72 @@ class Order {
 
   String get shortCode => orderCode.isEmpty ? '#$id' : orderCode;
 
+  /// 0: Placed / Pending, 1: Confirmed / Paid, 2: Dispatched, 3: Delivered
+  int get trackingStepIndex {
+    switch (status.toLowerCase()) {
+      case 'delivered':
+        return 3;
+      case 'shipped':
+      case 'out_for_delivery':
+      case 'in_transit':
+      case 'dispatched':
+        return 2;
+      case 'paid':
+      case 'confirmed':
+      case 'processing':
+        return 1;
+      case 'placed':
+      case 'pending':
+      default:
+        return 0;
+    }
+  }
+
+  String get trackingTitle {
+    switch (status.toLowerCase()) {
+      case 'delivered':
+        return 'Package Delivered';
+      case 'shipped':
+      case 'out_for_delivery':
+      case 'in_transit':
+      case 'dispatched':
+        return 'Out for Delivery';
+      case 'paid':
+      case 'confirmed':
+      case 'processing':
+        return 'Order Confirmed';
+      case 'placed':
+      case 'pending':
+      default:
+        return 'Order Placed (Pending)';
+    }
+  }
+
+  String get trackingDescription {
+    switch (status.toLowerCase()) {
+      case 'delivered':
+        return 'Order has been successfully delivered to the recipient.';
+      case 'shipped':
+      case 'out_for_delivery':
+      case 'in_transit':
+      case 'dispatched':
+        return 'Package is in transit with courier and will be delivered shortly.';
+      case 'paid':
+      case 'confirmed':
+      case 'processing':
+        return 'Payment verified & order accepted by seller. Preparing for dispatch.';
+      case 'placed':
+      case 'pending':
+      default:
+        return 'Your order was received and is currently pending verification.';
+    }
+  }
+
+  String get estimatedDeliveryDate {
+    if (status.toLowerCase() == 'delivered') return 'Delivered';
+    return 'Est. Delivery: 2-3 Business Days';
+  }
+
   factory Order.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'];
 

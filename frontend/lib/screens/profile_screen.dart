@@ -108,7 +108,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: ProfileTheme.primary,
         onRefresh: () => provider.loadProfile(),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 22, 18, 30),
+          padding: const EdgeInsets.fromLTRB(18, 22, 18, 95),
           children: content,
         ),
       );

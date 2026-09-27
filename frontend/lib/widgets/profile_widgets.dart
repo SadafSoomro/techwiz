@@ -952,95 +952,124 @@ class InviteSummaryCard extends StatelessWidget {
       onTap: onTap,
       pressedScale: 0.97,
       child: Container(
-        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: ProfileTheme.headerGradient,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: ProfileTheme.primary.withValues(alpha: 0.3),
+              color: ProfileTheme.primary.withValues(alpha: 0.35),
               blurRadius: 18,
               offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: AppImage(
+                  path: 'assets/images/products/straw_hat_crew_tee.jpg',
+                  fit: BoxFit.cover,
+                  fallbackColors: const [Color(0xFF3B82F6), Color(0xFF8B5CF6)],
+                ),
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(14),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF3B82F6).withValues(alpha: 0.88),
+                        const Color(0xFF8B5CF6).withValues(alpha: 0.82),
+                      ],
+                    ),
                   ),
-                  child: const Icon(Icons.group_add_rounded,
-                      color: Colors.white, size: 20),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'Invite Friends',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.22),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(Icons.group_add_rounded,
+                              color: Colors.white, size: 20),
                         ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Refer a friend and earn rewards',
-                        style: TextStyle(color: Colors.white70, fontSize: 11.5),
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(Icons.chevron_right_rounded, color: Colors.white70),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                _stat('$invited', 'Friends joined'),
-                Container(
-                  width: 1,
-                  height: 30,
-                  color: Colors.white.withValues(alpha: 0.22),
-                ),
-                const SizedBox(width: 14),
-                _stat('$points', 'Points earned'),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.confirmation_number_outlined,
-                          color: Colors.white, size: 13),
-                      const SizedBox(width: 6),
-                      Text(
-                        code,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.1,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text(
+                                'Invite Friends',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Refer a friend and earn rewards',
+                                style: TextStyle(color: Colors.white70, fontSize: 11.5),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
+                        const Icon(Icons.chevron_right_rounded, color: Colors.white70),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        _stat('$invited', 'Friends joined'),
+                        Container(
+                          width: 1,
+                          height: 30,
+                          color: Colors.white.withValues(alpha: 0.22),
+                        ),
+                        const SizedBox(width: 14),
+                        _stat('$points', 'Points earned'),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.confirmation_number_outlined,
+                                  color: Colors.white, size: 13),
+                              const SizedBox(width: 6),
+                              Text(
+                                code,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
