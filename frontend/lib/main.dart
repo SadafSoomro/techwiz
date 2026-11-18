@@ -12,7 +12,9 @@ import 'providers/content_provider.dart';
 import 'providers/event_provider.dart';
 import 'providers/profile_provider.dart';
 import 'providers/shop_provider.dart';
-import 'screens/splash_screen.dart';
+import 'screens/admin/admin_shell.dart';
+import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
 import 'services/admin_storage.dart';
 import 'services/auth_storage.dart';
 import 'theme/app_theme.dart';
@@ -20,34 +22,20 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // The Inter / Outfit TTFs ship inside the app bundle (assets/fonts), so a
-  // font must never be requested over the network. Turning runtime fetching
-  // off makes that guarantee explicit: a missing variant falls back to the
-  // system font instead of stalling the UI on an HTTP request.
   GoogleFonts.config.allowRuntimeFetching = false;
-
-  // Start loading the bundled fonts, but deliberately do NOT await them before
-  // `runApp`. The splash screen is pure artwork with no text on it, so it can
-  // paint immediately while the font files stream in from the bundle. Awaiting
-  // here used to hold the very first frame hostage to ~2 MB of font data.
   unawaited(_warmUpFonts());
 
-  // Reading SharedPreferences in parallel for instant session checks.
   await Future.wait([
     AuthStorage.preload(),
     AdminStorage.preload(),
   ]);
 
-  // Optimize Flutter engine image cache for rapid asset decoding and zero flicker
   PaintingBinding.instance.imageCache.maximumSize = 150;
   PaintingBinding.instance.imageCache.maximumSizeBytes = 120 << 20;
 
   runApp(const MyApp());
 }
 
-/// Loads every Inter / Outfit weight the app actually uses into the font
-/// engine, so screens that appear later never re-layout their text. Capped by a
-/// timeout so a problem here can never block startup.
 Future<void> _warmUpFonts() async {
   const weights = <FontWeight>[
     FontWeight.w400,
@@ -60,17 +48,13 @@ Future<void> _warmUpFonts() async {
 
   try {
     for (final weight in weights) {
-      // Creating the styles is what queues the asset loads.
       GoogleFonts.inter(fontWeight: weight);
       GoogleFonts.outfit(fontWeight: weight);
     }
-    // Covers the weights used by the global text theme (w400 / w500).
     GoogleFonts.interTextTheme(ThemeData.dark().textTheme);
 
     await GoogleFonts.pendingFonts().timeout(const Duration(seconds: 4));
-  } catch (_) {
-    // Cosmetic only - never hold the app hostage for a font.
-  }
+  } catch (_) {}
 }
 
 class MyApp extends StatelessWidget {
@@ -81,18 +65,12 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        // MEMBER 1 - Profile, Fandom Selection & Home
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
-        // MEMBER 2 - Fandom Content (hub, news, gallery, video, podcasts)
         ChangeNotifierProvider(create: (_) => ContentProvider()),
-        // MEMBER 3 - Search & Community
         ChangeNotifierProvider(create: (_) => CommunityProvider()),
-        // MEMBER 4 - Events & Maps
         ChangeNotifierProvider(create: (_) => EventProvider()),
-        // MEMBER 5 - Merchandise Store + AI Fan Helper
         ChangeNotifierProvider(create: (_) => ShopProvider()),
         ChangeNotifierProvider(create: (_) => AiProvider()),
-        // MEMBER 6 - Admin + Security (separate session, own panel)
         ChangeNotifierProvider(create: (_) => AdminProvider()),
       ],
       child: MaterialApp(
@@ -110,8 +88,33 @@ class MyApp extends StatelessWidget {
             child: child ?? const SizedBox.shrink(),
           );
         },
-        home: const SplashScreen(),
+        home: const AuthGate(),
       ),
     );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    if (auth.isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF080612),
+        body: Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFA855F7)),
+          ),
+        ),
+      );
+    }
+    if (auth.isAuthenticated) {
+      final isAdmin =
+          (auth.user?['role'] ?? 'user').toString().toLowerCase() == 'admin';
+      return isAdmin ? const AdminShell() : const HomeScreen();
+    }
+    return const LoginScreen();
   }
 }
