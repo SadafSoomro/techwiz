@@ -39,8 +39,8 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
     title: 'FANDOM VERSE Studio',
     city: 'Karachi',
     venue: 'Aptech Learning, Shahrah-e-Faisal',
-    latitude: 24.8607,
-    longitude: 67.0011,
+    latitude: 24.8642,
+    longitude: 67.0700,
   );
 
   @override
@@ -185,24 +185,67 @@ class _ContactUsScreenState extends State<ContactUsScreen> {
               accent: ProfileTheme.cyan,
             ),
             const SizedBox(height: 12),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: SizedBox(
-                height: 190,
-                child: EventMapView(
-                  pins: const [_officePin],
-                  showCurrentLocation: false,
-                  showOverlays: false,
-                  overlayPadding: const EdgeInsets.only(top: 8, bottom: 8),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: SizedBox(
+                  height: 200,
+                  child: EventMapView(
+                    pins: const [_officePin],
+                    selectedPinId: 0,
+                    showCurrentLocation: false,
+                    showOverlays: false,
+                    overlayPadding: const EdgeInsets.only(top: 8, bottom: 8),
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              'FANDOM VERSE Studio - Aptech Learning, Shahrah-e-Faisal, Karachi',
-              style: GoogleFonts.inter(
-                fontSize: 11.5,
-                color: ProfileTheme.textSecondary,
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: ProfileTheme.card,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.location_on_rounded, size: 16, color: ProfileTheme.cyan),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'FANDOM VERSE Studio - Aptech Learning, Shahrah-e-Faisal, Karachi',
+                      style: GoogleFonts.inter(
+                        fontSize: 11.5,
+                        color: ProfileTheme.textSecondary,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  GestureDetector(
+                    onTap: () => _copy('Address', 'Aptech Learning, Shahrah-e-Faisal, Karachi'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: ProfileTheme.cyan.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Text(
+                        'Copy',
+                        style: TextStyle(
+                          color: ProfileTheme.cyan,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 22),

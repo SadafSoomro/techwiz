@@ -1051,7 +1051,7 @@ class _HorizontalSection extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 268,
+              height: 298,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: items.length,

@@ -59,6 +59,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                 message ??
                     provider.errorMessage ??
                     'Could not add the item back to your cart',
+                style: const TextStyle(color: Colors.white),
               ),
               backgroundColor: message == null
                   ? ShopTheme.red
@@ -79,6 +80,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
             SnackBar(
               content: Text(
                 message ?? provider.errorMessage ?? 'Order removed',
+                style: const TextStyle(color: Colors.white),
               ),
               backgroundColor: ShopTheme.surfaceUltra,
               behavior: SnackBarBehavior.floating,
@@ -841,11 +843,14 @@ class OrderTrackerWidget extends StatelessWidget {
                 color: ShopTheme.gold,
               ),
               const SizedBox(width: 8),
-              Text(
-                'Live Order Tracking',
-                style: ShopTheme.title(size: 15),
+              Expanded(
+                child: Text(
+                  'Live Order Tracking',
+                  style: ShopTheme.title(size: 15),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               ShopTag(
                 label: order.trackingTitle,
                 color: activeStep == 3

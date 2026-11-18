@@ -98,6 +98,10 @@ class GradientActionButton extends StatelessWidget {
   final bool enabled;
   final LinearGradient gradient;
   final double height;
+  final Color? textColor;
+  final Color? iconColor;
+  final BoxBorder? border;
+  final List<BoxShadow>? customShadow;
 
   const GradientActionButton({
     super.key,
@@ -108,11 +112,18 @@ class GradientActionButton extends StatelessWidget {
     this.enabled = true,
     this.gradient = ProfileTheme.buttonGradient,
     this.height = 54,
+    this.textColor,
+    this.iconColor,
+    this.border,
+    this.customShadow,
   });
 
   @override
   Widget build(BuildContext context) {
     final active = enabled && !busy && onPressed != null;
+
+    final resolvedTextColor = textColor ?? (active ? Colors.white : ProfileTheme.textMuted);
+    final resolvedIconColor = iconColor ?? (active ? Colors.white : ProfileTheme.textMuted);
 
     return PressScale(
       onTap: active ? onPressed : null,
@@ -123,24 +134,25 @@ class GradientActionButton extends StatelessWidget {
           gradient: active ? gradient : null,
           color: active ? null : Colors.white.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(16),
+          border: border,
           boxShadow: active
-              ? [
+              ? (customShadow ?? [
                   BoxShadow(
                     color: ProfileTheme.primary.withValues(alpha: 0.35),
                     blurRadius: 18,
                     offset: const Offset(0, 7),
                   ),
-                ]
+                ])
               : null,
         ),
         child: Center(
           child: busy
-              ? const SizedBox(
+              ? SizedBox(
                   width: 22,
                   height: 22,
                   child: CircularProgressIndicator(
                     strokeWidth: 2.4,
-                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                    valueColor: AlwaysStoppedAnimation(resolvedTextColor),
                   ),
                 )
               : Row(
@@ -150,14 +162,14 @@ class GradientActionButton extends StatelessWidget {
                       Icon(
                         icon,
                         size: 19,
-                        color: active ? Colors.white : ProfileTheme.textMuted,
+                        color: resolvedIconColor,
                       ),
                       const SizedBox(width: 9),
                     ],
                     Text(
                       label,
                       style: TextStyle(
-                        color: active ? Colors.white : ProfileTheme.textMuted,
+                        color: resolvedTextColor,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -589,6 +601,7 @@ class FandomSelectCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = fandom.displayColor;
+    final iconData = ProfileTheme.fandomIcon(fandom.name);
 
     return PressScale(
       onTap: onTap,
@@ -598,61 +611,99 @@ class FandomSelectCard extends StatelessWidget {
         curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withValues(alpha: selected ? 0.32 : 0.15),
+              const Color(0xFF131926),
+              const Color(0xFF0C101A),
+            ],
+            stops: const [0.0, 0.55, 1.0],
+          ),
           border: Border.all(
-            color: selected ? color : Colors.white.withValues(alpha: 0.08),
-            width: selected ? 2 : 1,
+            color: selected ? color : Colors.white.withValues(alpha: 0.10),
+            width: selected ? 2.2 : 1.2,
           ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: color.withValues(alpha: 0.35),
-                    blurRadius: 20,
+                    color: color.withValues(alpha: 0.40),
+                    blurRadius: 22,
                     offset: const Offset(0, 8),
                   ),
                 ]
-              : null,
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(19),
           child: Stack(
             fit: StackFit.expand,
             children: [
-              AppImage(
-                path: fandom.imageUrl.isEmpty
-                    ? ProfileTheme.fandomArtwork(fandom.name)
-                    : fandom.imageUrl,
-                fallbackColors: [color, ProfileTheme.primaryDark],
-                fallbackIcon: ProfileTheme.fandomIcon(fandom.name),
-              ),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: selected ? 0.15 : 0.3),
-                      Colors.black.withValues(alpha: 0.85),
-                    ],
-                    stops: const [0.3, 1],
+              // Radial ambient color glow behind icon
+              Positioned(
+                top: -10,
+                left: -10,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        color.withValues(alpha: selected ? 0.40 : 0.22),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
                 ),
               ),
+
+              // Large watermark icon filling the box nicely
               Positioned(
-                top: 9,
-                right: 9,
+                right: -12,
+                bottom: -10,
+                child: Opacity(
+                  opacity: selected ? 0.24 : 0.13,
+                  child: Icon(
+                    iconData,
+                    size: 105,
+                    color: color,
+                  ),
+                ),
+              ),
+
+              // Selection tick badge top right
+              Positioned(
+                top: 10,
+                right: 10,
                 child: AnimatedScale(
                   duration: const Duration(milliseconds: 260),
-                  scale: selected ? 1 : 0.86,
+                  scale: selected ? 1 : 0.88,
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 260),
-                    padding: const EdgeInsets.all(5),
+                    padding: const EdgeInsets.all(5.5),
                     decoration: BoxDecoration(
-                      color: selected ? color : Colors.black.withValues(alpha: 0.4),
+                      color: selected ? color : Colors.black.withValues(alpha: 0.45),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: Colors.white.withValues(alpha: selected ? 0.9 : 0.35),
+                        color: Colors.white.withValues(alpha: selected ? 0.95 : 0.30),
                         width: 1.6,
                       ),
+                      boxShadow: selected
+                          ? [
+                              BoxShadow(
+                                color: color.withValues(alpha: 0.6),
+                                blurRadius: 10,
+                              ),
+                            ]
+                          : null,
                     ),
                     child: Icon(
                       selected ? Icons.check_rounded : Icons.add_rounded,
@@ -662,36 +713,84 @@ class FandomSelectCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Positioned(
-                left: 11,
-                right: 11,
-                bottom: 11,
+
+              // Content: Icon badge + Title + Followers count
+              Padding(
+                padding: const EdgeInsets.all(13),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(
-                      ProfileTheme.fandomIcon(fandom.name),
-                      size: 19,
-                      color: Colors.white.withValues(alpha: 0.85),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      fandom.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                    // Main prominent icon container
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            color.withValues(alpha: 0.35),
+                            color.withValues(alpha: 0.15),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(
+                          color: color.withValues(alpha: selected ? 0.85 : 0.40),
+                          width: 1.4,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: color.withValues(alpha: selected ? 0.30 : 0.12),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        iconData,
+                        size: 26,
                         color: Colors.white,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${ProfileTheme.compactCount(fandom.followersCount)} fans',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 10.5,
-                      ),
+
+                    // Fandom Name & Stats
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          fandom.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              '${ProfileTheme.compactCount(fandom.followersCount)} fans',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.72),
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1031,36 +1130,47 @@ class InviteSummaryCard extends StatelessWidget {
                     Row(
                       children: [
                         _stat('$invited', 'Friends joined'),
+                        const SizedBox(width: 8),
                         Container(
                           width: 1,
-                          height: 30,
+                          height: 28,
                           color: Colors.white.withValues(alpha: 0.22),
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: 8),
                         _stat('$points', 'Points earned'),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.confirmation_number_outlined,
-                                  color: Colors.white, size: 13),
-                              const SizedBox(width: 6),
-                              Text(
-                                code,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.1,
-                                ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                               ),
-                            ],
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.confirmation_number_outlined,
+                                      color: Colors.white, size: 13),
+                                  const SizedBox(width: 5),
+                                  Flexible(
+                                    child: Text(
+                                      code,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.8,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ],

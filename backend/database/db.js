@@ -47,13 +47,13 @@ db.serialize(() => {
       password TEXT,
       verified INTEGER DEFAULT 0,
       verificationCode TEXT,
-      resetCode TEXT
+      resetCode TEXT,
+      avatar_url TEXT
     )
   `);
 
-  db.run(`ALTER TABLE users ADD COLUMN resetCode TEXT`, (err) => {
-    // Ignore error if column already exists
-  });
+  db.run(`ALTER TABLE users ADD COLUMN resetCode TEXT`, (err) => {});
+  db.run(`ALTER TABLE users ADD COLUMN avatar_url TEXT`, (err) => {});
 });
 
 export default db;

@@ -102,6 +102,26 @@ class _EventTicketScreenState extends State<EventTicketScreen> {
     }
   }
 
+  Future<void> _confirm(EventTicket ticket) async {
+    final provider = context.read<EventProvider>();
+    final result = await provider.confirmTicket(ticket.id);
+
+    if (!mounted) return;
+
+    if (result.success) {
+      await showSuccessAlert(
+        context,
+        'Your ticket pass for "${ticket.title}" is now confirmed!',
+        title: 'Ticket Confirmed',
+      );
+      if (result.data != null) {
+        setState(() => _ticket = result.data);
+      }
+    } else {
+      await showErrorAlert(context, result.message, title: 'Could Not Confirm');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<EventProvider>();
@@ -111,7 +131,7 @@ class _EventTicketScreenState extends State<EventTicketScreen> {
       title: single != null ? 'Event Ticket' : 'My Tickets',
       subtitle: single != null
           ? single.ticketCode
-          : '${provider.myTickets.length} confirmed booking(s)',
+          : '${provider.myTickets.length} booked pass(es)',
       showHeaderGlow: false,
       actions: [
         if (single != null)
@@ -125,6 +145,7 @@ class _EventTicketScreenState extends State<EventTicketScreen> {
           ? _TicketView(
               ticket: single,
               onCancel: () => _cancel(single),
+              onConfirm: () => _confirm(single),
               onEvent: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => EventDetailsScreen(eventId: single.eventId),
@@ -251,7 +272,14 @@ class _TicketListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = EventTheme.categoryColor(ticket.category);
-    final cancelled = !ticket.isConfirmed;
+    final isPending = ticket.status.toLowerCase() == 'pending' || ticket.status.toLowerCase() == 'on pending';
+    final isConfirmed = ticket.isConfirmed;
+    final badgeColor = isConfirmed
+        ? EventTheme.green
+        : (isPending ? EventTheme.amber : AppTheme.errorColor);
+    final badgeText = isConfirmed
+        ? 'CONFIRMED'
+        : (isPending ? 'ON PENDING' : 'CANCELLED');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -259,9 +287,11 @@ class _TicketListTile extends StatelessWidget {
         color: EventTheme.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: cancelled
-              ? Colors.white.withValues(alpha: 0.08)
-              : color.withValues(alpha: 0.35),
+          color: isConfirmed
+              ? color.withValues(alpha: 0.35)
+              : (isPending
+                  ? EventTheme.amber.withValues(alpha: 0.35)
+                  : Colors.white.withValues(alpha: 0.08)),
         ),
       ),
       child: Material(
@@ -308,18 +338,13 @@ class _TicketListTile extends StatelessWidget {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: (cancelled
-                                          ? AppTheme.errorColor
-                                          : EventTheme.green)
-                                      .withValues(alpha: 0.16),
+                                  color: badgeColor.withValues(alpha: 0.16),
                                   borderRadius: BorderRadius.circular(7),
                                 ),
                                 child: Text(
-                                  cancelled ? 'CANCELLED' : 'CONFIRMED',
+                                  badgeText,
                                   style: GoogleFonts.inter(
-                                    color: cancelled
-                                        ? AppTheme.errorColor
-                                        : EventTheme.green,
+                                    color: badgeColor,
                                     fontSize: 8.5,
                                     fontWeight: FontWeight.bold,
                                     letterSpacing: 0.5,
@@ -390,12 +415,14 @@ class _TicketListTile extends StatelessWidget {
 class _TicketView extends StatelessWidget {
   final EventTicket ticket;
   final VoidCallback onCancel;
+  final VoidCallback onConfirm;
   final VoidCallback onEvent;
   final VoidCallback onMap;
 
   const _TicketView({
     required this.ticket,
     required this.onCancel,
+    required this.onConfirm,
     required this.onEvent,
     required this.onMap,
   });
@@ -403,6 +430,7 @@ class _TicketView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = EventTheme.categoryColor(ticket.category);
+    final isPending = !ticket.isConfirmed && ticket.status.toLowerCase() != 'cancelled';
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
@@ -456,8 +484,10 @@ class _TicketView extends StatelessWidget {
                         Icon(
                           ticket.isConfirmed
                               ? Icons.verified_rounded
-                              : Icons.cancel_rounded,
-                          color: Colors.white,
+                              : (isPending
+                                  ? Icons.hourglass_top_rounded
+                                  : Icons.cancel_rounded),
+                          color: isPending ? EventTheme.amber : Colors.white,
                           size: 22,
                         ),
                       ],
@@ -685,6 +715,75 @@ class _TicketView extends StatelessWidget {
         ),
 
         const SizedBox(height: 20),
+
+        // ----------------------- pending confirmation banner -----------------------
+        if (!ticket.isConfirmed && ticket.status.toLowerCase() != 'cancelled') ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: EventTheme.amber.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: EventTheme.amber.withValues(alpha: 0.45),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.hourglass_top_rounded, color: EventTheme.amber, size: 22),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Ticket Reserved · ON PENDING',
+                        style: GoogleFonts.outfit(
+                          color: EventTheme.amber,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Your ticket pass is currently reserved on pending. Confirm your booking below to activate your entrance pass!',
+                  style: GoogleFonts.inter(
+                    color: Colors.white70,
+                    fontSize: 11.5,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: onConfirm,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: EventTheme.green,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    icon: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                    label: Text(
+                      'CONFIRM TICKET & PASS',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+        ],
 
         // ---------------------------- countdown ----------------------------
         if (ticket.isConfirmed)

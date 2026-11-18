@@ -122,6 +122,20 @@ export const adminLogin = asyncHandler(async (req, res) => {
     });
   }
 
+  if (user.verified === 0) {
+    await logAdminAction({
+      level: "warn",
+      action: "admin_login_unverified",
+      targetType: "user",
+      targetId: user.id,
+      details: `${email} attempted to log into admin portal but email is not verified`,
+    });
+    return res.status(403).json({
+      success: false,
+      message: "Please verify your email address before accessing the admin portal.",
+    });
+  }
+
   const isMatch = await bcrypt.compare(password, user.password || "");
   if (!isMatch) {
     await logAdminAction({
@@ -508,12 +522,13 @@ export const createUser = asyncHandler(async (req, res) => {
   }
 
   const hash = await bcrypt.hash(password, 10);
+  const avatar = req.body.avatar ? String(req.body.avatar).trim() : "assets/images/avatars/avatar_01.jpg";
 
   const result = await run(
     `INSERT INTO users
-       (name, email, password, phone, role, is_active, verified, created_at, last_active_at)
-     VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-    [name, email, hash, phone, role, isActive]
+       (name, email, password, phone, role, is_active, avatar, verified, created_at, last_active_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+    [name, email, hash, phone, role, isActive, avatar]
   );
 
   await logAdminAction({
@@ -545,6 +560,12 @@ export const updateUser = asyncHandler(async (req, res) => {
   const email = String(req.body.email ?? user.email ?? "").trim().toLowerCase();
   const phone = String(req.body.phone ?? user.phone ?? "").trim() || null;
   const role = String(req.body.role ?? user.role ?? "user").trim().toLowerCase();
+  const avatar =
+    req.body.avatar !== undefined
+      ? req.body.avatar
+        ? String(req.body.avatar).trim()
+        : null
+      : user.avatar;
   const isActive =
     req.body.is_active === undefined
       ? Number(user.is_active ?? 1)
@@ -566,9 +587,9 @@ export const updateUser = asyncHandler(async (req, res) => {
   }
 
   await run(
-    `UPDATE users SET name = ?, email = ?, phone = ?, role = ?, is_active = ?
+    `UPDATE users SET name = ?, email = ?, phone = ?, role = ?, is_active = ?, avatar = ?
       WHERE id = ?`,
-    [name, email, phone, role, isActive, id]
+    [name, email, phone, role, isActive, avatar, id]
   );
 
   // Optional password reset from the admin form.
@@ -999,7 +1020,7 @@ export const updateEvent = asyncHandler(async (req, res) => {
     `UPDATE events
         SET title = ?, description = ?, category = ?, city_name = ?, venue_name = ?,
             event_date = ?, start_time = ?, ticket_price = ?, currency = ?,
-            capacity = ?, status = ?, is_featured = ?, updated_at = CURRENT_TIMESTAMP
+            image_url = ?, capacity = ?, status = ?, is_featured = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?`,
     [
       String(req.body.title ?? e.title).trim(),
@@ -1013,6 +1034,7 @@ export const updateEvent = asyncHandler(async (req, res) => {
         ? Number(e.ticket_price || 0)
         : Number(req.body.ticket_price),
       req.body.currency ?? e.currency,
+      req.body.image_url !== undefined ? req.body.image_url : e.image_url,
       req.body.capacity === undefined ? Number(e.capacity || 0) : Number(req.body.capacity),
       req.body.status ?? e.status,
       req.body.is_featured === undefined
@@ -1067,6 +1089,94 @@ export const deleteEvent = asyncHandler(async (req, res) => {
   });
 
   return ok(res, {}, "Event deleted successfully.");
+});
+
+/* =========================================================================
+ * event tickets
+ * ========================================================================= */
+
+/** GET /api/admin/tickets?search=&status=&page= */
+export const listEventTickets = asyncHandler(async (req, res) => {
+  const search = String(req.query.search || "").trim();
+  const status = String(req.query.status || "").trim();
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(5, parseInt(req.query.limit, 10) || 20));
+  const offset = (page - 1) * limit;
+
+  const where = [];
+  const params = [];
+  if (search) {
+    where.push(`(et.ticket_code LIKE ? OR u.name LIKE ? OR u.email LIKE ? OR e.title LIKE ?)`);
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+  }
+  if (status) {
+    where.push(`et.status = ?`);
+    params.push(status);
+  }
+  const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+
+  const totalRow = await get(
+    `SELECT COUNT(*) AS total
+       FROM event_tickets et
+       LEFT JOIN users u ON u.id = et.user_id
+       LEFT JOIN events e ON e.id = et.event_id
+     ${clause}`,
+    params
+  );
+
+  const rows = await all(
+    `SELECT et.id, et.event_id, et.user_id, et.quantity, et.unit_price, et.total_price,
+            et.currency, et.ticket_code, et.seat_number, et.status, et.booked_at,
+            u.name AS user_name, u.email AS user_email, u.avatar_url AS user_avatar,
+            e.title AS event_title, e.city_name, e.venue_name, e.event_date, e.start_time, e.image_url AS event_image
+       FROM event_tickets et
+       LEFT JOIN users u ON u.id = et.user_id
+       LEFT JOIN events e ON e.id = et.event_id
+     ${clause}
+      ORDER BY et.id DESC LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
+
+  const total = Number(totalRow?.total || 0);
+
+  return ok(res, {
+    tickets: rows,
+    counts: {
+      all: await safeCount(`SELECT COUNT(*) FROM event_tickets`),
+      pending: await safeCount(`SELECT COUNT(*) FROM event_tickets WHERE status = 'pending'`),
+      confirmed: await safeCount(`SELECT COUNT(*) FROM event_tickets WHERE status = 'confirmed'`),
+      cancelled: await safeCount(`SELECT COUNT(*) FROM event_tickets WHERE status = 'cancelled'`),
+    },
+    pagination: {
+      page,
+      limit,
+      total,
+      pages: Math.max(1, Math.ceil(total / limit)),
+    },
+  });
+});
+
+/** PATCH /api/admin/tickets/:id/status */
+export const setTicketStatus = asyncHandler(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const status = String(req.body.status || "").toLowerCase().trim();
+  if (!["confirmed", "cancelled", "used", "pending"].includes(status)) {
+    return res.status(400).json({ success: false, message: "Invalid ticket status." });
+  }
+  const ticket = await get(`SELECT * FROM event_tickets WHERE id = ?`, [id]);
+  if (!ticket) {
+    return res.status(404).json({ success: false, message: "Ticket not found." });
+  }
+  await run(`UPDATE event_tickets SET status = ? WHERE id = ?`, [status, id]);
+  await logAdminAction({
+    adminId: req.admin?.id,
+    adminEmail: req.admin?.email,
+    action: "ticket_status_update",
+    targetType: "event_ticket",
+    targetId: String(id),
+    details: `Ticket #${id} (${ticket.ticket_code}) status changed to ${status}`,
+  });
+  return ok(res, { ticket: { ...ticket, status } }, `Ticket marked as ${status}`);
 });
 
 /* =========================================================================
@@ -1772,7 +1882,20 @@ export const updateSecuritySettings = asyncHandler(async (req, res) => {
     });
   }
 
-  return ok(res, { settings: await readSettings() }, "Security settings saved.");
+  const settings = await readSettings();
+  return ok(
+    res,
+    {
+      settings: {
+        login_alerts: settings.login_alerts === "1",
+        two_factor: settings.two_factor === "1",
+        maintenance: settings.maintenance === "1",
+        auto_backup: settings.auto_backup === "1",
+        registration: settings.registration === "1",
+      },
+    },
+    "Security settings saved."
+  );
 });
 
 /* =========================================================================
@@ -1981,6 +2104,188 @@ export const clearLogs = asyncHandler(async (req, res) => {
   return ok(res, {}, "Logs cleared.");
 });
 
+/* =========================================================================
+ * ORDERS (User Orders Management)
+ * ========================================================================= */
+
+/** GET /api/admin/orders - lists all user orders with filtering & pagination */
+export const listOrders = asyncHandler(async (req, res) => {
+  const q = String(req.query.q || "").trim();
+  const status = String(req.query.status || "").trim().toLowerCase();
+  const sort = String(req.query.sort || "newest").toLowerCase();
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+  const offset = (page - 1) * limit;
+
+  const conditions = [];
+  const params = [];
+
+  if (status && status !== "all") {
+    conditions.push("LOWER(o.status) = ?");
+    params.push(status);
+  }
+
+  if (q) {
+    conditions.push("(o.order_code LIKE ? OR u.name LIKE ? OR u.email LIKE ? OR o.shipping_address LIKE ?)");
+    const wild = `%${q}%`;
+    params.push(wild, wild, wild, wild);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+  const total = await safeCount(
+    `SELECT COUNT(*) FROM orders o LEFT JOIN users u ON u.id = o.user_id ${where}`,
+    params
+  );
+
+  const orderBys = {
+    newest: "o.id DESC",
+    oldest: "o.id ASC",
+    total_high: "o.total DESC",
+    total_low: "o.total ASC",
+  };
+  const orderBy = orderBys[sort] || "o.id DESC";
+
+  const orders = await safeRows(
+    `SELECT o.*,
+            u.name AS user_name,
+            u.email AS user_email,
+            (SELECT COUNT(*) FROM order_items i WHERE i.order_id = o.id) AS item_count,
+            (SELECT i.image_url FROM order_items i WHERE i.order_id = o.id ORDER BY i.id LIMIT 1) AS preview_image,
+            (SELECT i.name FROM order_items i WHERE i.order_id = o.id ORDER BY i.id LIMIT 1) AS preview_name
+       FROM orders o
+       LEFT JOIN users u ON u.id = o.user_id
+      ${where}
+      ORDER BY ${orderBy}
+      LIMIT ? OFFSET ?`,
+    [...params, limit, offset]
+  );
+
+  // Attach line items for each order
+  const orderIds = orders.map((o) => o.id);
+  let items = [];
+  if (orderIds.length > 0) {
+    const placeholders = orderIds.map(() => "?").join(",");
+    items = await safeRows(
+      `SELECT * FROM order_items WHERE order_id IN (${placeholders}) ORDER BY id ASC`,
+      orderIds
+    );
+  }
+
+  const byOrder = new Map();
+  for (const item of items) {
+    if (!byOrder.has(item.order_id)) byOrder.set(item.order_id, []);
+    byOrder.get(item.order_id).push(item);
+  }
+
+  const mapped = orders.map((o) => ({
+    ...o,
+    placed_ago: timeAgo(o.placed_at),
+    items: byOrder.get(o.id) || [],
+  }));
+
+  return ok(res, {
+    orders: mapped,
+    total,
+    page,
+    limit,
+    pages: Math.ceil(total / limit) || 1,
+  });
+});
+
+/** GET /api/admin/orders/:id - gets one order detail */
+export const getOrderDetail = asyncHandler(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ success: false, message: "Invalid order id" });
+  }
+
+  const order = await get(
+    `SELECT o.*, u.name AS user_name, u.email AS user_email
+       FROM orders o
+       LEFT JOIN users u ON u.id = o.user_id
+      WHERE o.id = ?`,
+    [id]
+  );
+
+  if (!order) {
+    return res.status(404).json({ success: false, message: "Order not found" });
+  }
+
+  const items = await safeRows(
+    `SELECT * FROM order_items WHERE order_id = ? ORDER BY id ASC`,
+    [id]
+  );
+
+  return ok(res, {
+    order: {
+      ...order,
+      placed_ago: timeAgo(order.placed_at),
+      items,
+    },
+  });
+});
+
+/** PATCH /api/admin/orders/:id/status - updates status */
+export const setOrderStatus = asyncHandler(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  const status = String(req.body.status || "").trim().toLowerCase();
+  const validStatuses = ["placed", "pending", "processing", "shipped", "delivered", "cancelled"];
+
+  if (Number.isNaN(id) || !validStatuses.includes(status)) {
+    return res.status(400).json({
+      success: false,
+      message: `Status must be one of: ${validStatuses.join(", ")}`,
+    });
+  }
+
+  const existing = await get(`SELECT id, order_code, status FROM orders WHERE id = ?`, [id]);
+  if (!existing) {
+    return res.status(404).json({ success: false, message: "Order not found" });
+  }
+
+  await run(`UPDATE orders SET status = ? WHERE id = ?`, [status, id]);
+
+  await logAdminAction({
+    adminId: req.admin.id,
+    adminEmail: req.admin.email,
+    level: "info",
+    action: "update_order_status",
+    targetType: "order",
+    targetId: id,
+    details: `Order #${existing.order_code} status changed from ${existing.status} to ${status}`,
+  });
+
+  return ok(res, { order: { id, status } }, `Order status updated to ${status}`);
+});
+
+/** DELETE /api/admin/orders/:id - deletes order */
+export const deleteOrder = asyncHandler(async (req, res) => {
+  const id = parseInt(req.params.id, 10);
+  if (Number.isNaN(id)) {
+    return res.status(400).json({ success: false, message: "Invalid order id" });
+  }
+
+  const existing = await get(`SELECT id, order_code FROM orders WHERE id = ?`, [id]);
+  if (!existing) {
+    return res.status(404).json({ success: false, message: "Order not found" });
+  }
+
+  await run(`DELETE FROM order_items WHERE order_id = ?`, [id]);
+  await run(`DELETE FROM orders WHERE id = ?`, [id]);
+
+  await logAdminAction({
+    adminId: req.admin.id,
+    adminEmail: req.admin.email,
+    level: "warn",
+    action: "delete_order",
+    targetType: "order",
+    targetId: id,
+    details: `Deleted order #${existing.order_code}`,
+  });
+
+  return ok(res, {}, "Order deleted successfully.");
+});
+
 export default {
   adminLogin,
   getMe,
@@ -2010,6 +2315,10 @@ export default {
   listNotifications,
   sendNotification,
   deleteNotification,
+  listOrders,
+  getOrderDetail,
+  setOrderStatus,
+  deleteOrder,
   getSecurity,
   updatePassword,
   updateSecuritySettings,

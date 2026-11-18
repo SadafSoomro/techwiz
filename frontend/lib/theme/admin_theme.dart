@@ -112,6 +112,17 @@ class AdminTheme {
     colors: [color.withValues(alpha: 0.28), color.withValues(alpha: 0.04)],
   );
 
+  /// Responsive screen padding for admin sections.
+  static EdgeInsets screenPadding(BuildContext context) {
+    final width = MediaQuery.of(context).size.width;
+    if (width < 600) {
+      return const EdgeInsets.symmetric(horizontal: 12, vertical: 12);
+    } else if (width < 980) {
+      return const EdgeInsets.all(16);
+    }
+    return const EdgeInsets.all(20);
+  }
+
   // -------------------------------- helpers -------------------------------
   static Color forLevel(String level) {
     switch (level.toLowerCase()) {

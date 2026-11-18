@@ -154,7 +154,7 @@ class _AdminNotificationsSectionState extends State<AdminNotificationsSection> {
         final history = _buildHistory();
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: AdminTheme.screenPadding(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -256,7 +256,7 @@ class _AdminNotificationsSectionState extends State<AdminNotificationsSection> {
             ),
             const SizedBox(height: 15),
             DropdownButtonFormField<String>(
-              initialValue: _audience,
+              value: _audience,
               dropdownColor: AdminTheme.surfaceAlt,
               style: TextStyle(color: AdminTheme.textPrimary),
               decoration: const InputDecoration(

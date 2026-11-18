@@ -108,7 +108,7 @@ class _AdminContentSectionState extends State<AdminContentSection> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: AdminTheme.screenPadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -230,18 +230,11 @@ class _AdminContentSectionState extends State<AdminContentSection> {
                 '${(item['author'] ?? 'unknown author')}  -  '
                 '${AdminTheme.compact(_num(item['views_count']))} views',
             onTap: () => _openForm(item: item),
-            leading: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AdminTheme.cyan.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Icon(
-                _typeIcon((item['content_type'] ?? '').toString()),
-                size: 18,
-                color: AdminTheme.cyan,
-              ),
+            leading: AdminImageThumbnail(
+              imageUrl: (item['image_url'] ?? '').toString(),
+              fallbackIcon: _typeIcon((item['content_type'] ?? '').toString()),
+              fallbackColor: AdminTheme.cyan,
+              size: 42,
             ),
             pills: [
               AdminPill(
@@ -358,6 +351,8 @@ class _ContentFormDialogState extends State<_ContentFormDialog> {
   late final TextEditingController _fandom;
   late final TextEditingController _author;
   late final TextEditingController _imageUrl;
+  late final TextEditingController _mediaUrl;
+  late final TextEditingController _duration;
   late final TextEditingController _body;
 
   String _type = 'news';
@@ -382,6 +377,13 @@ class _ContentFormDialogState extends State<_ContentFormDialog> {
     _imageUrl = TextEditingController(
       text: (item['image_url'] ?? '').toString(),
     );
+    _imageUrl.addListener(() => setState(() {}));
+    _mediaUrl = TextEditingController(
+      text: (item['media_url'] ?? '').toString(),
+    );
+    _duration = TextEditingController(
+      text: (item['duration_seconds'] ?? '').toString(),
+    );
     _body = TextEditingController();
     _type = (item['content_type'] ?? 'news').toString();
     _published = item['is_published'] == null || _toBool(item['is_published']);
@@ -395,6 +397,8 @@ class _ContentFormDialogState extends State<_ContentFormDialog> {
     _fandom.dispose();
     _author.dispose();
     _imageUrl.dispose();
+    _mediaUrl.dispose();
+    _duration.dispose();
     _body.dispose();
     super.dispose();
   }
@@ -409,6 +413,8 @@ class _ContentFormDialogState extends State<_ContentFormDialog> {
       'fandom': _fandom.text.trim(),
       'author': _author.text.trim(),
       'image_url': _imageUrl.text.trim(),
+      'media_url': _mediaUrl.text.trim().isNotEmpty ? _mediaUrl.text.trim() : null,
+      'duration_seconds': int.tryParse(_duration.text.trim()) ?? 0,
       'content_type': _type,
       'is_published': _published,
       'is_featured': _featured,
@@ -475,7 +481,7 @@ class _ContentFormDialogState extends State<_ContentFormDialog> {
                 ),
                 const SizedBox(height: 13),
                 DropdownButtonFormField<String>(
-                  initialValue: _type,
+                  value: _type,
                   dropdownColor: AdminTheme.surfaceAlt,
                   style: TextStyle(color: AdminTheme.textPrimary),
                   decoration: const InputDecoration(labelText: 'Content type'),
@@ -512,16 +518,98 @@ class _ContentFormDialogState extends State<_ContentFormDialog> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 13),
-                TextFormField(
-                  controller: _imageUrl,
-                  style: TextStyle(color: AdminTheme.textPrimary),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    AdminImageThumbnail(
+                      imageUrl: _imageUrl.text.trim(),
+                      fallbackIcon: Icons.article_rounded,
+                      fallbackColor: AdminTheme.cyan,
+                      size: 52,
+                      radius: 12,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _imageUrl,
+                        style: TextStyle(color: AdminTheme.textPrimary),
+                        decoration: const InputDecoration(
+                          labelText: 'Image URL or Asset Path',
+                          prefixIcon: Icon(Icons.image_outlined, size: 18),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  dropdownColor: AdminTheme.surfaceAlt,
+                  style: TextStyle(color: AdminTheme.textSecondary, fontSize: 12.5),
                   decoration: const InputDecoration(
-                    labelText: 'Image URL',
-                    prefixIcon: Icon(Icons.image_outlined, size: 18),
+                    labelText: 'Choose Bundled App Content Image (Optional)',
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
+                  items: const [
+                    DropdownMenuItem(value: '', child: Text('Custom / manual path')),
+                    DropdownMenuItem(value: 'assets/images/content/luffy_lore.jpg', child: Text('One Piece / Luffy Arc Artwork')),
+                    DropdownMenuItem(value: 'assets/images/content/gojo_jjk.jpg', child: Text('Jujutsu Kaisen / Gojo Artwork')),
+                    DropdownMenuItem(value: 'assets/images/content/demon_slayer.jpg', child: Text('Demon Slayer Artwork')),
+                    DropdownMenuItem(value: 'assets/images/content/news_01.jpg', child: Text('News Banner 01 (Anime)')),
+                    DropdownMenuItem(value: 'assets/images/content/news_02.jpg', child: Text('News Banner 02 (Gaming)')),
+                    DropdownMenuItem(value: 'assets/images/content/news_03.jpg', child: Text('News Banner 03 (Movies)')),
+                    DropdownMenuItem(value: 'assets/images/content/news_04.jpg', child: Text('News Banner 04 (Comics)')),
+                    DropdownMenuItem(value: 'assets/images/content/news_05.jpg', child: Text('News Banner 05 (Music)')),
+                    DropdownMenuItem(value: 'assets/images/content/news_06.jpg', child: Text('News Banner 06 (Cyberpunk)')),
+                    DropdownMenuItem(value: 'assets/images/content/news_07.jpg', child: Text('News Banner 07 (Studio)')),
+                    DropdownMenuItem(value: 'assets/images/content/news_08.jpg', child: Text('News Banner 08 (Open World)')),
+                    DropdownMenuItem(value: 'assets/images/content/gallery_01.jpg', child: Text('Gallery 01 (Cosplay)')),
+                    DropdownMenuItem(value: 'assets/images/content/gallery_02.jpg', child: Text('Gallery 02 (Fan Art)')),
+                    DropdownMenuItem(value: 'assets/images/content/video_01.jpg', child: Text('Video 01 (Official Trailer)')),
+                    DropdownMenuItem(value: 'assets/images/content/video_02.jpg', child: Text('Video 02 (Speedrun Run)')),
+                    DropdownMenuItem(value: 'assets/images/content/podcast_01.jpg', child: Text('Podcast 01 (Wano Retrospective)')),
+                    DropdownMenuItem(value: 'assets/images/content/podcast_02.jpg', child: Text('Podcast 02 (Speedrun Culture)')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null && val.isNotEmpty) {
+                      setState(() => _imageUrl.text = val);
+                    }
+                  },
                 ),
                 const SizedBox(height: 13),
+                if (_type == 'video' || _type == 'podcast') ...[
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 65,
+                        child: TextFormField(
+                          controller: _mediaUrl,
+                          style: TextStyle(color: AdminTheme.textPrimary),
+                          decoration: InputDecoration(
+                            labelText: _type == 'video' ? 'Video Stream URL' : 'Podcast Audio URL',
+                            prefixIcon: Icon(
+                              _type == 'video' ? Icons.play_circle_outline_rounded : Icons.mic_none_rounded,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 35,
+                        child: TextFormField(
+                          controller: _duration,
+                          keyboardType: TextInputType.number,
+                          style: TextStyle(color: AdminTheme.textPrimary),
+                          decoration: const InputDecoration(
+                            labelText: 'Duration (sec)',
+                            hintText: '180',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 13),
+                ],
                 TextFormField(
                   controller: _body,
                   maxLines: 3,
@@ -537,7 +625,7 @@ class _ContentFormDialogState extends State<_ContentFormDialog> {
                   value: _published,
                   onChanged: (value) => setState(() => _published = value),
                   contentPadding: EdgeInsets.zero,
-                  activeThumbColor: AdminTheme.green,
+                  activeColor: AdminTheme.green,
                   title: Text(
                     'Published',
                     style: TextStyle(
@@ -557,7 +645,7 @@ class _ContentFormDialogState extends State<_ContentFormDialog> {
                   value: _featured,
                   onChanged: (value) => setState(() => _featured = value),
                   contentPadding: EdgeInsets.zero,
-                  activeThumbColor: AdminTheme.pink,
+                  activeColor: AdminTheme.pink,
                   title: Text(
                     'Featured',
                     style: TextStyle(

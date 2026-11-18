@@ -156,6 +156,23 @@ class AuthProvider extends ChangeNotifier {
     return response;
   }
 
+  // Resend Verification Code
+  Future<ApiResponse> resendVerificationCode({
+    required String email,
+  }) async {
+    _setLoading(true);
+    _errorMessage = null;
+
+    final response = await ApiService.resendVerificationCode(email: email);
+
+    if (!response.success) {
+      _setError(response.message);
+    }
+
+    _setLoading(false);
+    return response;
+  }
+
   // Forgot Password
   Future<ApiResponse> forgotPassword({required String email}) async {
     _setLoading(true);

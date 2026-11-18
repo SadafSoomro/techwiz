@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/event_provider.dart';
 import '../providers/profile_provider.dart';
 import '../theme/profile_theme.dart';
 import '../widgets/animated_widgets.dart';
+import '../widgets/app_alert.dart';
 import '../widgets/profile_widgets.dart';
 import 'login_screen.dart';
+import 'orders_screen.dart';
 
 /// MEMBER 1 - Settings.
 ///
@@ -177,9 +180,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return ProfileScaffold(
       title: 'Settings',
       subtitle: 'Preferences for your account',
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 30),
-        children: [
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: ListView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 30),
+            children: [
           // ------------------------------------------- account header
           FadeSlideIn(
             child: Container(
@@ -237,6 +244,44 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 22),
+
+          // ------------------------------------------- orders & purchases
+          const SectionHeader(title: 'Orders & Purchases', accent: ProfileTheme.amber),
+          const SizedBox(height: 10),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 30),
+            child: SettingsActionTile(
+              title: 'My Orders & Tracking',
+              value: 'Current, old orders & live tracking',
+              icon: Icons.local_shipping_rounded,
+              color: ProfileTheme.amber,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const OrdersScreen()),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          FadeSlideIn(
+            delay: const Duration(milliseconds: 40),
+            child: SettingsActionTile(
+              title: 'Location & GPS Tracing',
+              value: context.watch<EventProvider>().currentCity,
+              icon: Icons.my_location_rounded,
+              color: ProfileTheme.cyan,
+              onTap: () async {
+                final city = await context.read<EventProvider>().recenterOnDeviceLocation();
+                if (context.mounted) {
+                  showSuccessAlert(
+                    context,
+                    'Traced current location: $city',
+                    title: 'Location Updated',
+                    accent: ProfileTheme.cyan,
+                  );
+                }
+              },
+            ),
+          ),
+          const SizedBox(height: 20),
 
           // ------------------------------------------- appearance
           const SectionHeader(title: 'Appearance', accent: ProfileTheme.tertiary),
@@ -431,6 +476,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }

@@ -3,12 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/animated_widgets.dart';
 import '../widgets/app_alert.dart';
 import '../widgets/fandom_logo.dart';
-import '../widgets/social_buttons.dart';
 import 'admin/admin_shell.dart';
+import 'fandom_selection_screen.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
 import 'signup_screen.dart';
@@ -27,6 +28,20 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
+  bool _isMaintenance = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkMaintenanceStatus();
+  }
+
+  Future<void> _checkMaintenanceStatus() async {
+    final status = await ApiService.getSystemStatus();
+    if (mounted && status['maintenance'] == true) {
+      setState(() => _isMaintenance = true);
+    }
+  }
 
   @override
   void dispose() {
@@ -47,11 +62,12 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (response.success && authProvider.isAuthenticated) {
-      // A `role` of admin skips the fan experience entirely and opens the
-      // Member 6 admin panel instead of the Home screen.
       final isAdmin =
           (authProvider.user?['role'] ?? 'user').toString().toLowerCase() ==
           'admin';
+      final selectedFandoms =
+          (authProvider.user?['selected_fandoms'] ?? '').toString().trim();
+      final hasSelectedFandoms = selectedFandoms.isNotEmpty;
 
       await showSuccessAlert(
         context,
@@ -62,7 +78,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => isAdmin ? const AdminShell() : const HomeScreen(),
+          builder: (_) => isAdmin
+              ? const AdminShell()
+              : (!hasSelectedFandoms
+                  ? const FandomSelectionScreen()
+                  : const HomeScreen()),
         ),
       );
     } else {
@@ -86,142 +106,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _handleGoogleSignIn() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final response = await authProvider.loginWithGoogle();
-
-    if (!mounted) return;
-
-    if (response.success && authProvider.isAuthenticated) {
-      // Same rule as the email/password form: an admin account opens the
-      // Member 6 panel, everyone else goes to the fan Home screen.
-      final isAdmin =
-          (authProvider.user?['role'] ?? 'user').toString().toLowerCase() ==
-          'admin';
-
-      await showSuccessAlert(
-        context,
-        response.message,
-        title: 'Login Successful',
-      );
-      if (!mounted) return;
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => isAdmin ? const AdminShell() : const HomeScreen(),
-        ),
-      );
-    } else {
-      if (response.message.contains('cancelled')) return;
-
-      if (response.message.toLowerCase().contains('authorization') ||
-          response.message.toLowerCase().contains('error') ||
-          response.message.toLowerCase().contains('console')) {
-        _showGoogleEmailFallbackDialog();
-      } else {
-        await showErrorAlert(
-          context,
-          response.message,
-          title: 'Google Sign In Failed',
-        );
-      }
-    }
-  }
-
-  void _showGoogleEmailFallbackDialog() {
-    final googleEmailController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const GoogleLogoWidget(size: 26),
-            const SizedBox(width: 10),
-            const Text(
-              'Google Sign In',
-              style: TextStyle(color: Colors.white, fontSize: 18),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter your Google account email to sign in:',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: googleEmailController,
-              keyboardType: TextInputType.emailAddress,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'Google Email',
-                hintText: 'yourname@gmail.com',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: AppTheme.textSecondary),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final email = googleEmailController.text.trim();
-              if (email.isEmpty || !email.contains('@')) return;
-
-              Navigator.of(dialogContext).pop();
-
-              final authProvider = Provider.of<AuthProvider>(
-                context,
-                listen: false,
-              );
-              final res = await authProvider.loginWithGoogleEmail(email: email);
-
-              if (!mounted) return;
-
-              if (res.success && authProvider.isAuthenticated) {
-                await showSuccessAlert(
-                  context,
-                  res.message,
-                  title: 'Login Successful',
-                );
-                if (!mounted) return;
-
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const HomeScreen()),
-                );
-              } else {
-                if (!mounted) return;
-                await showErrorAlert(
-                  context,
-                  res.message,
-                  title: 'Google Sign In Failed',
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primaryColor,
-            ),
-            child: const Text(
-              'Continue',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
@@ -235,9 +119,12 @@ class _LoginScreenState extends State<LoginScreen> {
         decoration: const BoxDecoration(gradient: AppTheme.backgroundGradient),
         child: SafeArea(
           child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 450),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -281,6 +168,42 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        if (_isMaintenance)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 18),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFF59E0B).withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.construction_rounded,
+                                  color: Color(0xFFFBBF24),
+                                  size: 19,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Platform under maintenance: Administrator sign-in active.',
+                                    style: GoogleFonts.inter(
+                                      color: const Color(0xFFFBBF24),
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
                         // Email or Username Input
                         TextFormField(
                           controller: _emailController,
@@ -410,46 +333,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 16),
-
-                  // Divider OR
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Divider(
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'or',
-                          style: GoogleFonts.inter(
-                            color: AppTheme.textMuted,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Divider(
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // Continue with Google Button (Official 4-color Google logo)
-                  SocialSignInButton(
-                    text: 'Continue with Google',
-                    icon: const GoogleLogoWidget(size: 22),
-                    onPressed: authProvider.isLoading
-                        ? null
-                        : _handleGoogleSignIn,
-                  ),
-
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
 
                   // Signup link
                   Row(
@@ -482,6 +366,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ],
+              ),
               ),
             ),
           ),

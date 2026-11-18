@@ -39,7 +39,7 @@ const ARTICLES = [
     summary: "The Wano arc finale became the most watched anime episode of the season, with fans trending five separate hashtags worldwide.",
     body:
       "The finale closed a storyline that ran for more than four years of production, and the reaction online was immediate.\n\nStreaming platforms reported 4.2 million concurrent viewers during the first hour alone. Fan communities organised watch parties across 60 cities, and cosplay groups recreated the final battle on social feeds within a day.\n\nWhat made this episode land so well was the pacing. Instead of stacking cliffhangers, the studio gave every main character a quiet moment before the final clash, which is exactly what long-time readers wanted to see animated.\n\nLooking ahead, the next arc has already been teased. Production staff confirmed a short break before the new season begins.",
-    image: `${IMG}/news_01.jpg`, author: "Fandom Verse Desk", source: "Fandom Verse Newsroom",
+    image: `${IMG}/luffy_lore.jpg`, author: "Fandom Verse Desk", source: "Fandom Verse Newsroom",
     tags: "OnePiece,Wano,Anime", featured: 1, daysAgo: 1, views: 18420, likes: 1320, comments: 214,
   },
   {
@@ -89,7 +89,7 @@ const ARTICLES = [
     summary: "The streaming service confirmed a double renewal, and the writers' room is already mapping the final arc.",
     body:
       "Two seasons at once is unusual, but the show is one of the platform's most re-watched titles. Weekly watch numbers actually grew during the second half of season 2.\n\nThe creators have promised that the ending is planned out and will not be extended beyond season 4.\n\nA tie-in audio drama set between seasons is also in development.",
-    image: `${IMG}/news_06.jpg`, author: "Fandom Verse Desk", source: "Fandom Verse Newsroom",
+    image: `${IMG}/gallery_01.jpg`, author: "Fandom Verse Desk", source: "Fandom Verse Newsroom",
     tags: "Cyberpunk,Renewal,SciFi", featured: 0, daysAgo: 6, views: 4870, likes: 388, comments: 51,
   },
   {

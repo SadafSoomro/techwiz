@@ -98,44 +98,60 @@ class AppImage extends StatelessWidget {
     // width rather than at full source resolution.
     return LayoutBuilder(
       builder: (context, constraints) {
+        final double? resolvedW =
+            width ?? (constraints.hasBoundedWidth ? constraints.maxWidth : null);
+        final double? resolvedH =
+            height ?? (constraints.hasBoundedHeight ? constraints.maxHeight : null);
+
         final cacheWidth = decodeCacheWidth(
           context,
-          width: resolveImageWidth(constraints, width),
-          height: height,
+          width: resolveImageWidth(constraints, resolvedW),
+          height: resolvedH,
         );
 
         Widget child;
         if (_isAsset) {
           child = Image.asset(
             path!,
-            height: height,
-            width: width,
+            height: resolvedH,
+            width: resolvedW,
             fit: fit,
             cacheWidth: cacheWidth,
-            errorBuilder: (_, _, _) => _fallback(),
+            errorBuilder: (_, _, _) => _fallback(w: resolvedW, h: resolvedH),
           );
         } else if (_isRemote) {
           child = Image.network(
             path!,
-            height: height,
-            width: width,
+            height: resolvedH,
+            width: resolvedW,
             fit: fit,
             cacheWidth: cacheWidth,
             loadingBuilder: (context, inner, progress) =>
-                progress == null ? inner : _fallback(),
-            errorBuilder: (_, _, _) => _fallback(),
+                progress == null ? inner : _fallback(w: resolvedW, h: resolvedH),
+            errorBuilder: (_, _, _) => _fallback(w: resolvedW, h: resolvedH),
           );
         } else {
-          child = _fallback();
+          child = _fallback(w: resolvedW, h: resolvedH);
         }
 
         if (!showFade) return ClipRRect(borderRadius: corners, child: child);
+
+        final shouldExpand =
+            constraints.hasBoundedWidth && constraints.hasBoundedHeight;
 
         return ClipRRect(
           borderRadius: corners,
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 380),
             switchInCurve: Curves.easeOutCubic,
+            layoutBuilder: (currentChild, previousChildren) => Stack(
+              fit: shouldExpand ? StackFit.expand : StackFit.loose,
+              alignment: Alignment.center,
+              children: [
+                ...previousChildren,
+                ?currentChild,
+              ],
+            ),
             transitionBuilder: (widget, animation) => FadeTransition(
               opacity: animation,
               child: ScaleTransition(
@@ -143,19 +159,19 @@ class AppImage extends StatelessWidget {
                 child: widget,
               ),
             ),
-            child: child,
+            child: shouldExpand ? SizedBox.expand(child: child) : child,
           ),
         );
       },
     );
   }
 
-  Widget _fallback() {
+  Widget _fallback({double? w, double? h}) {
     final colors =
         fallbackColors ?? const [Color(0xFF7C3AED), Color(0xFFEC4899)];
     return Container(
-      height: height,
-      width: width,
+      height: h ?? height,
+      width: w ?? width,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,

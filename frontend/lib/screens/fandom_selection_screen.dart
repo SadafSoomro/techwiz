@@ -78,6 +78,19 @@ class _FandomSelectionScreenState extends State<FandomSelectionScreen> {
         child: SafeArea(
           child: Column(
             children: [
+              // ------------------------------------------------ back button
+              if (Navigator.of(context).canPop())
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 12, top: 4),
+                    child: IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                      tooltip: 'Back',
+                      onPressed: () => Navigator.of(context).maybePop(),
+                    ),
+                  ),
+                ),
               // ------------------------------------------------ header
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 18, 24, 0),

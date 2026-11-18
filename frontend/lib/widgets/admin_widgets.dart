@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/admin_provider.dart';
 import '../theme/admin_theme.dart';
+import 'fandom_logo.dart';
 
 /// Applies the administrator's chosen palette to the admin subtree.
 ///
@@ -109,37 +110,95 @@ class AdminSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (icon != null) ...[
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              gradient: AdminTheme.glow(AdminTheme.primary),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AdminTheme.primary.withValues(alpha: 0.3),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 480;
+
+        if (isCompact && action != null) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  if (icon != null) ...[
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: AdminTheme.glow(AdminTheme.primary),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: AdminTheme.primary.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Icon(icon, color: AdminTheme.violet, size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontSize: 18),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (subtitle != null && subtitle!.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle!,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              action!,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (icon != null) ...[
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: AdminTheme.glow(AdminTheme.primary),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AdminTheme.primary.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: Icon(icon, color: AdminTheme.violet, size: 20),
+              ),
+              const SizedBox(width: 14),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: Theme.of(context).textTheme.titleLarge),
+                  if (subtitle != null && subtitle!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
+                  ],
+                ],
               ),
             ),
-            child: Icon(icon, color: AdminTheme.violet, size: 20),
-          ),
-          const SizedBox(width: 14),
-        ],
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.titleLarge),
-              if (subtitle != null && subtitle!.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
-              ],
-            ],
-          ),
-        ),
-        if (action != null) ...[const SizedBox(width: 12), action!],
-      ],
+            if (action != null) ...[const SizedBox(width: 12), action!],
+          ],
+        );
+      },
     );
   }
 }
@@ -350,7 +409,7 @@ class AdminPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
       decoration: BoxDecoration(
         color: filled ? color : color.withValues(alpha: 0.14),
         borderRadius: BorderRadius.circular(20),
@@ -358,18 +417,23 @@ class AdminPill extends StatelessWidget {
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 12, color: filled ? Colors.white : color),
+            Icon(icon, size: 11, color: filled ? Colors.white : color),
             const SizedBox(width: 4),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              color: filled ? Colors.white : color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: filled ? Colors.white : color,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
         ],
@@ -378,7 +442,7 @@ class AdminPill extends StatelessWidget {
   }
 }
 
-/// Circular avatar with initial fallback - used by the users list.
+/// Circular avatar with initial fallback - supports local assets & remote URLs.
 class AdminAvatar extends StatelessWidget {
   const AdminAvatar({
     super.key,
@@ -397,6 +461,42 @@ class AdminAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final effectiveColor = color ?? AdminTheme.primary;
     final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
+    final rawUrl = (imageUrl ?? '').trim();
+    final url = rawUrl.replaceFirst(RegExp(r'^/+'), '');
+
+    Widget fallbackText() => Text(
+      initial,
+      style: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+        fontSize: size * 0.4,
+      ),
+    );
+
+    final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.5;
+    final px = (size * dpr).round().clamp(64, 256);
+
+    Widget? imageContent;
+    if (url.isNotEmpty) {
+      if (url.startsWith('assets/')) {
+        imageContent = Image.asset(
+          url,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          cacheWidth: px,
+          errorBuilder: (context, error, stackTrace) => fallbackText(),
+        );
+      } else if (url.startsWith('http://') || url.startsWith('https://')) {
+        imageContent = Image.network(
+          url,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => fallbackText(),
+        );
+      }
+    }
 
     return Container(
       width: size,
@@ -409,29 +509,87 @@ class AdminAvatar extends StatelessWidget {
       ),
       alignment: Alignment.center,
       clipBehavior: Clip.antiAlias,
-      child: (imageUrl != null && imageUrl!.isNotEmpty)
-          ? Image.network(
-              imageUrl!,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Text(
-                initial,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: size * 0.4,
-                ),
-              ),
-            )
-          : Text(
-              initial,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: size * 0.4,
-              ),
-            ),
+      child: imageContent ?? fallbackText(),
+    );
+  }
+}
+
+/// Renders a square/rounded item thumbnail (products, content, events, categories)
+/// supporting both local bundled assets ('assets/...') and remote URLs,
+/// with graceful loading/error states and fallback icon.
+class AdminImageThumbnail extends StatelessWidget {
+  const AdminImageThumbnail({
+    super.key,
+    required this.imageUrl,
+    this.fallbackIcon = Icons.image_rounded,
+    this.fallbackColor,
+    this.size = 40,
+    this.radius = 11,
+    this.fit = BoxFit.cover,
+  });
+
+  final String? imageUrl;
+  final IconData fallbackIcon;
+  final Color? fallbackColor;
+  final double size;
+  final double radius;
+  final BoxFit fit;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = fallbackColor ?? AdminTheme.primary;
+    final rawUrl = (imageUrl ?? '').trim();
+    final url = rawUrl.replaceFirst(RegExp(r'^/+'), '');
+
+    Widget placeholder() => Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      child: Icon(fallbackIcon, size: size * 0.45, color: color),
+    );
+
+    if (url.isEmpty) return placeholder();
+
+    final dpr = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1.5;
+    final px = (size * dpr).round().clamp(64, 256);
+
+    Widget imgWidget;
+    if (url.startsWith('assets/')) {
+      imgWidget = Image.asset(
+        url,
+        width: size,
+        height: size,
+        fit: fit,
+        cacheWidth: px,
+        errorBuilder: (context, error, stackTrace) => placeholder(),
+      );
+    } else if (url.startsWith('http://') || url.startsWith('https://')) {
+      imgWidget = Image.network(
+        url,
+        width: size,
+        height: size,
+        fit: fit,
+        errorBuilder: (context, error, stackTrace) => placeholder(),
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return placeholder();
+        },
+      );
+    } else {
+      return placeholder();
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: Container(
+        width: size,
+        height: size,
+        color: AdminTheme.surfaceAlt,
+        child: imgWidget,
+      ),
     );
   }
 }
@@ -616,71 +774,155 @@ class _AdminListRowState extends State<AdminListRow> {
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: Material(
-        color: _hovered
-            ? AdminTheme.primary.withValues(alpha: AdminTheme.isLight ? 0.04 : 0.08)
-            : Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(10),
-          onTap: widget.onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            child: Row(
-              children: [
-                if (widget.leading != null) ...[
-                  widget.leading!,
-                  const SizedBox(width: 14),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        widget.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: AdminTheme.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      if (widget.subtitle != null && widget.subtitle!.isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          widget.subtitle!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: AdminTheme.textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                      if (widget.pills.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        Wrap(spacing: 6, runSpacing: 6, children: widget.pills),
-                      ],
-                    ],
-                  ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 580;
+
+        return MouseRegion(
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: Material(
+            color: _hovered
+                ? AdminTheme.primary.withValues(alpha: AdminTheme.isLight ? 0.04 : 0.08)
+                : Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: widget.onTap,
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: isCompact ? 10 : 14,
+                  vertical: isCompact ? 10 : 12,
                 ),
-                if (widget.trailing != null) ...[
-                  const SizedBox(width: 12),
-                  widget.trailing!,
-                ],
-                if (widget.menu != null) ...[
-                  const SizedBox(width: 6),
-                  widget.menu!,
-                ],
-              ],
+                child: isCompact
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (widget.leading != null) ...[
+                                widget.leading!,
+                                const SizedBox(width: 10),
+                              ],
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      widget.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: AdminTheme.textPrimary,
+                                        fontSize: 13.5,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    if (widget.subtitle != null && widget.subtitle!.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        widget.subtitle!,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: AdminTheme.textMuted,
+                                          fontSize: 11.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              if (widget.menu != null) ...[
+                                const SizedBox(width: 4),
+                                widget.menu!,
+                              ],
+                            ],
+                          ),
+                          if (widget.pills.isNotEmpty || widget.trailing != null) ...[
+                            const SizedBox(height: 8),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                if (widget.pills.isNotEmpty)
+                                  Expanded(
+                                    child: Wrap(
+                                      spacing: 5,
+                                      runSpacing: 5,
+                                      children: widget.pills,
+                                    ),
+                                  ),
+                                if (widget.trailing != null) ...[
+                                  if (widget.pills.isNotEmpty) const SizedBox(width: 8),
+                                  Flexible(
+                                    fit: widget.pills.isEmpty ? FlexFit.tight : FlexFit.loose,
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: widget.trailing!,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          if (widget.leading != null) ...[
+                            widget.leading!,
+                            const SizedBox(width: 14),
+                          ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  widget.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: AdminTheme.textPrimary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (widget.subtitle != null && widget.subtitle!.isNotEmpty) ...[
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    widget.subtitle!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: AdminTheme.textMuted,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                                if (widget.pills.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Wrap(spacing: 6, runSpacing: 6, children: widget.pills),
+                                ],
+                              ],
+                            ),
+                          ),
+                          if (widget.trailing != null) ...[
+                            const SizedBox(width: 12),
+                            widget.trailing!,
+                          ],
+                          if (widget.menu != null) ...[
+                            const SizedBox(width: 6),
+                            widget.menu!,
+                          ],
+                        ],
+                      ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -692,30 +934,36 @@ class AdminMiniStat extends StatelessWidget {
     required this.label,
     required this.value,
     this.color,
+    this.alignEnd = false,
   });
 
   final String label;
   final String? value;
   final Color? color;
+  final bool alignEnd;
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           value ?? '0',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.outfit(
             color: color ?? AdminTheme.textPrimary,
-            fontSize: 17,
+            fontSize: 15,
             fontWeight: FontWeight.bold,
           ),
         ),
         const SizedBox(height: 1),
         Text(
           label,
-          style: TextStyle(color: AdminTheme.textMuted, fontSize: 11.5),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: AdminTheme.textMuted, fontSize: 11),
         ),
       ],
     );
@@ -739,15 +987,17 @@ class AdminLoader extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const FandomLogoWidget(height: 48),
+            const SizedBox(height: 16),
             SizedBox(
-              width: 30,
-              height: 30,
+              width: 26,
+              height: 26,
               child: CircularProgressIndicator(
                 strokeWidth: 2.4,
                 color: AdminTheme.indigo,
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             Text(
               label,
               style: TextStyle(color: AdminTheme.textMuted, fontSize: 13),
@@ -1230,34 +1480,40 @@ class AdminPager extends StatelessWidget {
     final totalCount = total ?? 0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: AdminTheme.surfaceAlt,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: AdminTheme.isLight
-                    ? Colors.black.withValues(alpha: 0.15)
-                    : Colors.white.withValues(alpha: 0.15),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+              decoration: BoxDecoration(
+                color: AdminTheme.surfaceAlt,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AdminTheme.isLight
+                      ? Colors.black.withValues(alpha: 0.15)
+                      : Colors.white.withValues(alpha: 0.15),
+                ),
               ),
-            ),
-            child: Text(
-              '$totalCount total record${totalCount == 1 ? '' : 's'}',
-              style: TextStyle(
-                color: AdminTheme.textSecondary,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+              child: Text(
+                '$totalCount total record${totalCount == 1 ? '' : 's'}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AdminTheme.textSecondary,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
-          const Spacer(),
+          const SizedBox(width: 8),
           IconButton.outlined(
             onPressed: curPage > 1 ? () => onPage(curPage - 1) : null,
             icon: const Icon(Icons.chevron_left_rounded, size: 18),
             style: IconButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(34, 34),
               side: BorderSide(
                 color: AdminTheme.isLight
                     ? Colors.black.withValues(alpha: 0.2)
@@ -1267,9 +1523,9 @@ class AdminPager extends StatelessWidget {
             ),
             tooltip: 'Previous page',
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
               color: AdminTheme.primary.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
@@ -1281,16 +1537,18 @@ class AdminPager extends StatelessWidget {
               'Page $curPage of $totalPages',
               style: TextStyle(
                 color: AdminTheme.primary,
-                fontSize: 12.5,
+                fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           IconButton.outlined(
             onPressed: curPage < totalPages ? () => onPage(curPage + 1) : null,
             icon: const Icon(Icons.chevron_right_rounded, size: 18),
             style: IconButton.styleFrom(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(34, 34),
               side: BorderSide(
                 color: AdminTheme.isLight
                     ? Colors.black.withValues(alpha: 0.2)

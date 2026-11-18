@@ -108,7 +108,7 @@ class _AdminProductsSectionState extends State<AdminProductsSection> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: AdminTheme.screenPadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -230,18 +230,11 @@ class _AdminProductsSectionState extends State<AdminProductsSection> {
                 '${(product['category'] ?? '-')}'
                 '${product['fandom'] != null ? '  -  ${product['fandom']}' : ''}',
             onTap: () => _openForm(product: product),
-            leading: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AdminTheme.amber.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Icon(
-                Icons.shopping_bag_rounded,
-                size: 18,
-                color: AdminTheme.amber,
-              ),
+            leading: AdminImageThumbnail(
+              imageUrl: (product['image_url'] ?? '').toString(),
+              fallbackIcon: Icons.shopping_bag_rounded,
+              fallbackColor: AdminTheme.amber,
+              size: 42,
             ),
             pills: [
               AdminPill(label: status, color: AdminTheme.forStatus(status)),
@@ -272,6 +265,7 @@ class _AdminProductsSectionState extends State<AdminProductsSection> {
                 currency: (product['currency'] ?? 'PKR').toString(),
               ),
               color: AdminTheme.green,
+              alignEnd: true,
             ),
             menu: PopupMenuButton<String>(
               color: AdminTheme.surfaceAlt,
@@ -380,6 +374,7 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
     _oldPrice = TextEditingController(text: (p['old_price'] ?? '').toString());
     _stock = TextEditingController(text: (p['stock'] ?? '0').toString());
     _imageUrl = TextEditingController(text: (p['image_url'] ?? '').toString());
+    _imageUrl.addListener(() => setState(() {}));
     _description = TextEditingController();
     _status = (p['status'] ?? 'active').toString();
     _featured = _toBool(p['is_featured']);
@@ -550,18 +545,78 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 13),
-                TextFormField(
-                  controller: _imageUrl,
-                  style: TextStyle(color: AdminTheme.textPrimary),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    AdminImageThumbnail(
+                      imageUrl: _imageUrl.text.trim(),
+                      fallbackIcon: Icons.shopping_bag_rounded,
+                      fallbackColor: AdminTheme.amber,
+                      size: 52,
+                      radius: 12,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _imageUrl,
+                        style: TextStyle(color: AdminTheme.textPrimary),
+                        decoration: const InputDecoration(
+                          labelText: 'Image URL or Asset Path',
+                          prefixIcon: Icon(Icons.image_outlined, size: 18),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                DropdownButtonFormField<String>(
+                  dropdownColor: AdminTheme.surfaceAlt,
+                  style: TextStyle(color: AdminTheme.textSecondary, fontSize: 12.5),
                   decoration: const InputDecoration(
-                    labelText: 'Image URL',
-                    prefixIcon: Icon(Icons.image_outlined, size: 18),
+                    labelText: 'Choose Bundled App Product Image (Optional)',
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   ),
+                  items: const [
+                    DropdownMenuItem(value: '', child: Text('Custom / manual path')),
+                    DropdownMenuItem(value: 'assets/images/products/luffy_gear5_figure.jpg', child: Text('Luffy Gear 5 Figure')),
+                    DropdownMenuItem(value: 'assets/images/products/naruto_sage_figure.jpg', child: Text('Naruto Sage Mode Figure')),
+                    DropdownMenuItem(value: 'assets/images/products/tanjiro_kamado_figure.jpg', child: Text('Tanjiro Kamado Figure')),
+                    DropdownMenuItem(value: 'assets/images/products/gojo_satoru_figure.jpg', child: Text('Gojo Satoru Figure')),
+                    DropdownMenuItem(value: 'assets/images/products/goku_ultra_instinct_figure.jpg', child: Text('Goku Ultra Instinct Figure')),
+                    DropdownMenuItem(value: 'assets/images/products/zoro_three_sword_figure.jpg', child: Text('Roronoa Zoro Figure')),
+                    DropdownMenuItem(value: 'assets/images/products/mikasa_ackerman_figure.jpg', child: Text('Mikasa Ackerman Figure')),
+                    DropdownMenuItem(value: 'assets/images/products/nezuko_kamado_figure.jpg', child: Text('Nezuko Kamado Figure')),
+                    DropdownMenuItem(value: 'assets/images/products/sasuke_rinnegan_figure.jpg', child: Text('Sasuke Rinnegan Figure')),
+                    DropdownMenuItem(value: 'assets/images/products/straw_hat_crew_tee.jpg', child: Text('Straw Hat Crew Tee')),
+                    DropdownMenuItem(value: 'assets/images/products/konoha_leaf_tee.jpg', child: Text('Konoha Leaf Village Tee')),
+                    DropdownMenuItem(value: 'assets/images/products/demon_slayer_haori_tee.jpg', child: Text('Demon Slayer Haori Tee')),
+                    DropdownMenuItem(value: 'assets/images/products/cursed_energy_tee.jpg', child: Text('Cursed Energy Tee')),
+                    DropdownMenuItem(value: 'assets/images/products/survey_corps_tee.jpg', child: Text('Survey Corps Tee')),
+                    DropdownMenuItem(value: 'assets/images/products/kpop_lightstick_tee.jpg', child: Text('K-Pop Lightstick Tee')),
+                    DropdownMenuItem(value: 'assets/images/products/one_piece_collector_box.jpg', child: Text('One Piece Collector Box')),
+                    DropdownMenuItem(value: 'assets/images/products/naruto_legacy_box.jpg', child: Text('Naruto Legacy Box Set')),
+                    DropdownMenuItem(value: 'assets/images/products/demon_slayer_trilogy_box.jpg', child: Text('Demon Slayer Trilogy Box')),
+                    DropdownMenuItem(value: 'assets/images/products/shonen_starter_bundle.jpg', child: Text('Shonen Starter Bundle')),
+                    DropdownMenuItem(value: 'assets/images/products/ghibli_art_collection.jpg', child: Text('Studio Ghibli Art Collection')),
+                    DropdownMenuItem(value: 'assets/images/products/akatsuki_cloud_ring.jpg', child: Text('Akatsuki Cloud Ring')),
+                    DropdownMenuItem(value: 'assets/images/products/anime_enamel_pin_set.jpg', child: Text('Anime Enamel Pin Set')),
+                    DropdownMenuItem(value: 'assets/images/products/straw_hat_keychain.jpg', child: Text('Straw Hat Keychain')),
+                    DropdownMenuItem(value: 'assets/images/products/gaming_headset_covers.jpg', child: Text('Gaming Headset Covers')),
+                    DropdownMenuItem(value: 'assets/images/products/cosplay_wig_care_kit.jpg', child: Text('Cosplay Wig Care Kit')),
+                    DropdownMenuItem(value: 'assets/images/products/anime_4k_wallpaper_pack.jpg', child: Text('Anime 4K Wallpaper Pack')),
+                    DropdownMenuItem(value: 'assets/images/products/manga_lettering_font_bundle.jpg', child: Text('Manga Lettering Font Bundle')),
+                    DropdownMenuItem(value: 'assets/images/products/fandom_sfx_sound_pack.jpg', child: Text('Fandom SFX Sound Pack')),
+                    DropdownMenuItem(value: 'assets/images/products/cosplay_pose_reference_pack.jpg', child: Text('Cosplay Pose Reference Pack')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null && val.isNotEmpty) {
+                      setState(() => _imageUrl.text = val);
+                    }
+                  },
                 ),
                 const SizedBox(height: 13),
                 DropdownButtonFormField<String>(
-                  initialValue: _status,
+                  value: _status,
                   dropdownColor: AdminTheme.surfaceAlt,
                   style: TextStyle(color: AdminTheme.textPrimary),
                   decoration: const InputDecoration(labelText: 'Status'),
@@ -587,7 +642,7 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
                   value: _featured,
                   onChanged: (value) => setState(() => _featured = value),
                   contentPadding: EdgeInsets.zero,
-                  activeThumbColor: AdminTheme.violet,
+                  activeColor: AdminTheme.violet,
                   title: Text(
                     'Featured product',
                     style: TextStyle(
@@ -600,7 +655,7 @@ class _ProductFormDialogState extends State<_ProductFormDialog> {
                   value: _digital,
                   onChanged: (value) => setState(() => _digital = value),
                   contentPadding: EdgeInsets.zero,
-                  activeThumbColor: AdminTheme.cyan,
+                  activeColor: AdminTheme.cyan,
                   title: Text(
                     'Digital download',
                     style: TextStyle(

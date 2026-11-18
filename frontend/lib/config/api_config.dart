@@ -6,7 +6,8 @@ class ApiConfig {
   // Base URL auto-detection based on device/platform
   static String get baseUrl {
     if (kIsWeb) {
-      return 'http://localhost:5000/api';
+      final host = Uri.base.host.isNotEmpty ? Uri.base.host : 'localhost';
+      return 'http://$host:5000/api';
     }
     try {
       if (Platform.isAndroid) {
@@ -20,22 +21,27 @@ class ApiConfig {
   static const String googleClientId =
       '346283855204-tmhtfilf469h44b4jc8mri4oqokfk7jf.apps.googleusercontent.com';
 
-  // Mapbox API Key & Map Tile Service (CartoDB Dark Matter for 100% English place labels)
-  static const String mapboxApiKey = 'YOUR_MAPBOX_API_KEY';
+  // Mapbox & Clean English Map Tiles
+  static const String mapboxApiKey = '';
+
+  /// Clean high-performance English map tiles.
+  /// Uses Google Maps with hl=en to guarantee all labels (roads, sectors, cities) appear in English worldwide.
   static String mapboxTileUrl({String style = 'dark-v11'}) =>
-      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+      'https://mt1.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}';
   static const String fallbackTileUrl =
-      'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+      'https://mt2.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}';
   static String get mapLink =>
-      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+      'https://mt1.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}';
   static String get mapUrl =>
-      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+      'https://mt1.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}';
   static String get googleMapsLink =>
-      'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+      'https://mt1.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}';
 
   // Endpoints
+  static String get systemStatusUrl => '$baseUrl/auth/system-status';
   static String get registerUrl => '$baseUrl/auth/register';
   static String get verifyEmailUrl => '$baseUrl/auth/verify-email';
+  static String get resendCodeUrl => '$baseUrl/auth/resend-code';
   static String get loginUrl => '$baseUrl/auth/login';
   static String get forgotPasswordUrl => '$baseUrl/auth/forgot-password';
   static String get resetPasswordUrl => '$baseUrl/auth/reset-password';
@@ -199,9 +205,18 @@ class ApiConfig {
   static String get adminEventsUrl => '$adminBase/events';
   static String adminEventUrl(int id) => '$adminBase/events/$id';
 
+  // Event Tickets
+  static String get adminTicketsUrl => '$adminBase/tickets';
+  static String adminTicketStatusUrl(int id) => '$adminBase/tickets/$id/status';
+
   // Products
   static String get adminProductsUrl => '$adminBase/products';
   static String adminProductUrl(int id) => '$adminBase/products/$id';
+
+  // Orders (User orders management)
+  static String get adminOrdersUrl => '$adminBase/orders';
+  static String adminOrderUrl(int id) => '$adminBase/orders/$id';
+  static String adminOrderStatusUrl(int id) => '$adminBase/orders/$id/status';
 
   // Categories
   static String get adminCategoriesUrl => '$adminBase/categories';

@@ -30,6 +30,9 @@ class EventMapView extends StatefulWidget {
   /// Space reserved by screen chrome (filters at top, card/carousel at bottom).
   final EdgeInsets overlayPadding;
 
+  /// Trigger incremented whenever user requests to locate / recenter on their device position.
+  final int locateTrigger;
+
   const EventMapView({
     super.key,
     required this.pins,
@@ -41,6 +44,7 @@ class EventMapView extends StatefulWidget {
     this.currentLabel = 'You',
     this.showOverlays = true,
     this.overlayPadding = EdgeInsets.zero,
+    this.locateTrigger = 0,
   });
 
   @override
@@ -80,28 +84,49 @@ class _EventMapViewState extends State<EventMapView> {
   }
 
   void _recenter() {
-    _mapController.move(_initialCenter, 13.0);
+    _mapController.move(_initialCenter, 16.0);
   }
 
   @override
   void didUpdateWidget(covariant EventMapView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.selectedPinId != null && widget.selectedPinId != oldWidget.selectedPinId) {
+    if (widget.locateTrigger != oldWidget.locateTrigger &&
+        widget.currentLatitude != null &&
+        widget.currentLongitude != null &&
+        widget.currentLatitude != 0 &&
+        widget.currentLongitude != 0) {
+      // User tapped locate -> smoothly pan and zoom directly to user's exact location!
+      _mapController.move(
+        LatLng(widget.currentLatitude!, widget.currentLongitude!),
+        16.0,
+      );
+    } else if (widget.selectedPinId != null && widget.selectedPinId != oldWidget.selectedPinId) {
       final pin = widget.pins.where((p) => p.id == widget.selectedPinId).firstOrNull;
       if (pin != null && (pin.latitude != 0 || pin.longitude != 0)) {
-        _mapController.move(LatLng(pin.latitude, pin.longitude), 14.0);
+        _mapController.move(LatLng(pin.latitude, pin.longitude), 14.5);
       }
-    } else if (widget.pins != oldWidget.pins ||
-        widget.currentLatitude != oldWidget.currentLatitude ||
+    } else if (widget.currentLatitude != oldWidget.currentLatitude ||
         widget.currentLongitude != oldWidget.currentLongitude) {
       final center = _initialCenter;
-      _mapController.move(center, 12.5);
+      final zoom = (widget.showCurrentLocation &&
+              widget.currentLatitude != null &&
+              widget.currentLatitude != 0)
+          ? 16.0
+          : (widget.pins.length == 1 ? 14.5 : 12.8);
+      _mapController.move(center, zoom);
+    } else if (widget.pins != oldWidget.pins) {
+      final center = _initialCenter;
+      final zoom = widget.pins.length == 1 ? 14.5 : 13.0;
+      _mapController.move(center, zoom);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final center = _initialCenter;
+    final hasUserLoc = widget.showCurrentLocation &&
+        widget.currentLatitude != null &&
+        widget.currentLatitude != 0;
 
     return ClipRect(
       child: Stack(
@@ -111,7 +136,7 @@ class _EventMapViewState extends State<EventMapView> {
             mapController: _mapController,
             options: MapOptions(
               initialCenter: center,
-              initialZoom: 12.0,
+              initialZoom: hasUserLoc ? 16.0 : (widget.pins.length == 1 ? 14.5 : 12.0),
               minZoom: 2.0,
               maxZoom: 18.0,
               interactionOptions: const InteractionOptions(
@@ -151,8 +176,8 @@ class _EventMapViewState extends State<EventMapView> {
 
                     return Marker(
                       point: LatLng(pin.latitude, pin.longitude),
-                      width: selected ? 190 : 52,
-                      height: selected ? 86 : 58,
+                      width: selected ? 210 : 52,
+                      height: selected ? 112 : 58,
                       alignment: Alignment.bottomCenter,
                       child: _MapMarker(
                         pin: pin,
@@ -517,7 +542,7 @@ class _ScaleBar extends StatelessWidget {
           ),
           const SizedBox(height: 3),
           Text(
-            'Mapbox Maps',
+            'Live Map',
             style: GoogleFonts.inter(
               color: AppTheme.textSecondary,
               fontSize: 9,
@@ -561,12 +586,17 @@ class _CurrentLocationChip extends StatelessWidget {
           children: [
             const Icon(Icons.my_location_rounded, color: EventTheme.teal, size: 14),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 160),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],

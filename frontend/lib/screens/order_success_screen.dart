@@ -28,7 +28,7 @@ class OrderSuccessScreen extends StatelessWidget {
     return ShopScaffold(
       title: 'Order Success',
       subtitle: 'Order ${order.shortCode}',
-      showBackButton: false,
+      showBackButton: true,
       actions: [
         ShopHeaderAction(
           icon: Icons.shopping_bag_rounded,

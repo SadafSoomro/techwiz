@@ -164,7 +164,11 @@ class _AdminUsersSectionState extends State<AdminUsersSection> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Row(
           children: [
-            AdminAvatar(name: (detail['name'] ?? '?').toString(), size: 38),
+            AdminAvatar(
+              name: (detail['name'] ?? '?').toString(),
+              imageUrl: (detail['avatar'] ?? '').toString(),
+              size: 42,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -317,7 +321,7 @@ class _AdminUsersSectionState extends State<AdminUsersSection> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: AdminTheme.screenPadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -457,6 +461,7 @@ class _AdminUsersSectionState extends State<AdminUsersSection> {
                 '${user['joined_ago'] != null ? '  -  joined ${user['joined_ago']}' : ''}',
             leading: AdminAvatar(
               name: (user['name'] ?? '?').toString(),
+              imageUrl: (user['avatar'] ?? '').toString(),
               color: AdminTheme.forRole((user['role'] ?? 'user').toString()),
             ),
             onTap: () => _showDetail(user),
@@ -581,6 +586,7 @@ class _UserFormDialogState extends State<_UserFormDialog> {
   late final TextEditingController _email;
   late final TextEditingController _phone;
   late final TextEditingController _password;
+  late final TextEditingController _avatar;
 
   String _role = 'user';
   bool _isActive = true;
@@ -596,6 +602,8 @@ class _UserFormDialogState extends State<_UserFormDialog> {
     _email = TextEditingController(text: (user['email'] ?? '').toString());
     _phone = TextEditingController(text: (user['phone'] ?? '').toString());
     _password = TextEditingController();
+    _avatar = TextEditingController(text: (user['avatar'] ?? 'assets/images/avatars/avatar_01.jpg').toString());
+    _avatar.addListener(() => setState(() {}));
     _role = (user['role'] ?? 'user').toString();
     _isActive = user['is_active'] == null
         ? true
@@ -610,6 +618,7 @@ class _UserFormDialogState extends State<_UserFormDialog> {
     _email.dispose();
     _phone.dispose();
     _password.dispose();
+    _avatar.dispose();
     super.dispose();
   }
 
@@ -623,6 +632,7 @@ class _UserFormDialogState extends State<_UserFormDialog> {
       'email': _email.text.trim(),
       'phone': _phone.text.trim(),
       'role': _role,
+      'avatar': _avatar.text.trim().isNotEmpty ? _avatar.text.trim() : null,
       'is_active': _isActive,
     };
 
@@ -735,8 +745,54 @@ class _UserFormDialogState extends State<_UserFormDialog> {
                   ),
                 ),
                 const SizedBox(height: 13),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    AdminAvatar(
+                      name: _name.text.trim().isNotEmpty ? _name.text.trim() : 'U',
+                      imageUrl: _avatar.text.trim(),
+                      size: 48,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _avatar,
+                        style: TextStyle(color: AdminTheme.textPrimary),
+                        decoration: const InputDecoration(
+                          labelText: 'Avatar Image or Asset Path',
+                          prefixIcon: Icon(Icons.account_circle_outlined, size: 18),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  initialValue: _role,
+                  dropdownColor: AdminTheme.surfaceAlt,
+                  style: TextStyle(color: AdminTheme.textSecondary, fontSize: 12.5),
+                  decoration: const InputDecoration(
+                    labelText: 'Choose Bundled App Avatar',
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'assets/images/avatars/avatar_01.jpg', child: Text('Avatar 01 (Pink Hair / Sadaf)')),
+                    DropdownMenuItem(value: 'assets/images/avatars/avatar_02.jpg', child: Text('Avatar 02 (Purple / Shazmeen)')),
+                    DropdownMenuItem(value: 'assets/images/avatars/avatar_03.jpg', child: Text('Avatar 03 (Blue Hair / Maryam)')),
+                    DropdownMenuItem(value: 'assets/images/avatars/avatar_04.jpg', child: Text('Avatar 04 (Cosplay / Gold)')),
+                    DropdownMenuItem(value: 'assets/images/avatars/avatar_05.jpg', child: Text('Avatar 05 (Gamer / Green)')),
+                    DropdownMenuItem(value: 'assets/images/avatars/avatar_06.jpg', child: Text('Avatar 06 (Cyber / Cyan)')),
+                    DropdownMenuItem(value: 'assets/images/avatars/avatar_07.jpg', child: Text('Avatar 07 (Shonen Hero)')),
+                    DropdownMenuItem(value: 'assets/images/avatars/avatar_08.jpg', child: Text('Avatar 08 (K-Pop Idol)')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null && val.isNotEmpty) {
+                      setState(() => _avatar.text = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 13),
+                DropdownButtonFormField<String>(
+                  value: _role,
                   dropdownColor: AdminTheme.surfaceAlt,
                   style: TextStyle(color: AdminTheme.textPrimary),
                   decoration: const InputDecoration(
@@ -785,7 +841,7 @@ class _UserFormDialogState extends State<_UserFormDialog> {
                   value: _isActive,
                   onChanged: (value) => setState(() => _isActive = value),
                   contentPadding: EdgeInsets.zero,
-                  activeThumbColor: AdminTheme.green,
+                  activeColor: AdminTheme.green,
                   title: Text(
                     'Account active',
                     style: TextStyle(

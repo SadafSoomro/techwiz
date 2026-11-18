@@ -3,21 +3,22 @@ import nodemailer from "nodemailer";
 
 dotenv.config();
 
-console.log("EMAIL USER IN EMAIL.JS:", process.env.EMAIL_USER);
-console.log(
-    "EMAIL PASSWORD IN EMAIL.JS:",
-    process.env.EMAIL_PASS ? "LOADED" : "MISSING"
-);
+export const getTransporter = () => {
+  const emailUser = (process.env.EMAIL_USER || "").trim();
+  const emailPass = (process.env.EMAIL_PASS || "").replace(/\s+/g, "").trim();
 
-const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-
+  return nodemailer.createTransport({
+    service: "gmail",
     auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-    }
-});
+      user: emailUser,
+      pass: emailPass,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+};
+
+const transporter = getTransporter();
 
 export default transporter;

@@ -52,12 +52,14 @@ class AboutUsScreen extends StatelessWidget {
     ),
   ];
 
-  static const List<({String role, String scope})> _team = [
-    (role: 'Member 1', scope: 'Profile, fandom interests & home dashboard'),
-    (role: 'Member 2', scope: 'Fandom content hub, news, gallery, video & podcasts'),
-    (role: 'Member 3', scope: 'Search, discussions & community'),
-    (role: 'Member 4', scope: 'Events, maps & calendar'),
-    (role: 'Member 5', scope: 'Merchandise store & AI Fan Helper'),
+  static const List<({String name, String role, String scope})> _team = [
+    (name: 'Sadaf', role: 'Member 1', scope: 'Profile, fandom interests & home dashboard'),
+    (name: 'Sadaf', role: 'Member 2', scope: 'Fandom content hub, news, gallery, video & podcasts'),
+    (name: 'Sadaf', role: 'Member 3', scope: 'Search, discussions & community'),
+    (name: 'Sadaf', role: 'Member 4', scope: 'Events, maps & calendar'),
+    (name: 'Shazmeen', role: 'Member 5', scope: 'Merchandise store (Shop)'),
+    (name: 'Sadaf & Shazmeen', role: 'AI', scope: 'AI Fan Helper & Interactive Assistant'),
+    (name: 'Sadaf & Shazmeen', role: 'Admin', scope: 'Admin Panel & Operations'),
   ];
 
   @override
@@ -203,20 +205,22 @@ class AboutUsScreen extends StatelessWidget {
               children: [
                 for (final member in _team)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.only(bottom: 14),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          width: 30,
-                          height: 30,
+                          width: 32,
+                          height: 32,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             gradient: ProfileTheme.badgeGradient,
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            member.role.replaceAll('Member ', ''),
+                            member.role.startsWith('Member ')
+                                ? member.role.replaceAll('Member ', '')
+                                : member.role.substring(0, 1),
                             style: GoogleFonts.inter(
                               fontSize: 12.5,
                               fontWeight: FontWeight.w700,
@@ -229,19 +233,39 @@ class AboutUsScreen extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                member.role,
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: ProfileTheme.textPrimary,
-                                ),
+                              Row(
+                                children: [
+                                  Text(
+                                    member.name,
+                                    style: GoogleFonts.inter(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: ProfileTheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      member.role,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 2),
+                              const SizedBox(height: 3),
                               Text(
                                 member.scope,
                                 style: GoogleFonts.inter(
-                                  fontSize: 11.5,
+                                  fontSize: 12,
                                   color: ProfileTheme.textSecondary,
                                 ),
                               ),
@@ -251,13 +275,6 @@ class AboutUsScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                Text(
-                  'FANDOM VERSE Studio  •  Aptech Learning, Karachi',
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: ProfileTheme.textMuted,
-                  ),
-                ),
               ],
             ),
           ),

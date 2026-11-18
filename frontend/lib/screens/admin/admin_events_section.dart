@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../services/admin_service.dart';
 import '../../theme/admin_theme.dart';
 import '../../widgets/admin_widgets.dart';
+import 'admin_shell.dart';
 
 /// Member 6 - Manage Events.
 class AdminEventsSection extends StatefulWidget {
@@ -106,7 +107,7 @@ class _AdminEventsSectionState extends State<AdminEventsSection> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: AdminTheme.screenPadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -116,10 +117,30 @@ class _AdminEventsSectionState extends State<AdminEventsSection> {
                 '${AdminTheme.compact(_total)} matching of '
                 '${AdminTheme.compact(_num(_counts['all']))} events',
             icon: Icons.event_rounded,
-            action: AdminPrimaryButton(
-              label: 'Add Event',
-              icon: Icons.add_rounded,
-              onPressed: () => _openForm(),
+            action: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.confirmation_number_rounded, size: 16),
+                  label: const Text('View Tickets'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AdminTheme.indigo,
+                    side: BorderSide(color: AdminTheme.indigo),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  onPressed: () {
+                    AdminNavScope.maybeOf(context)?.goTo('tickets');
+                  },
+                ),
+                AdminPrimaryButton(
+                  label: 'Add Event',
+                  icon: Icons.add_rounded,
+                  onPressed: () => _openForm(),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 18),
@@ -228,18 +249,11 @@ class _AdminEventsSectionState extends State<AdminEventsSection> {
                 '${event['venue_name'] != null ? ' - ${event['venue_name']}' : ''}'
                 '  -  ${event['event_date'] ?? ''} ${event['start_time'] ?? ''}',
             onTap: () => _openForm(event: event),
-            leading: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AdminTheme.pink.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(11),
-              ),
-              child: Icon(
-                Icons.place_rounded,
-                size: 18,
-                color: AdminTheme.pink,
-              ),
+            leading: AdminImageThumbnail(
+              imageUrl: (event['image_url'] ?? '').toString(),
+              fallbackIcon: Icons.calendar_month_rounded,
+              fallbackColor: AdminTheme.pink,
+              size: 42,
             ),
             pills: [
               AdminPill(label: status, color: AdminTheme.forStatus(status)),
@@ -265,6 +279,7 @@ class _AdminEventsSectionState extends State<AdminEventsSection> {
                     )
                   : 'Free',
               color: AdminTheme.green,
+              alignEnd: true,
             ),
             menu: PopupMenuButton<String>(
               color: AdminTheme.surfaceAlt,
@@ -343,6 +358,8 @@ class _EventFormDialogState extends State<_EventFormDialog> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _title;
+  late final TextEditingController _description;
+  late final TextEditingController _address;
   late final TextEditingController _category;
   late final TextEditingController _city;
   late final TextEditingController _venue;
@@ -350,6 +367,7 @@ class _EventFormDialogState extends State<_EventFormDialog> {
   late final TextEditingController _time;
   late final TextEditingController _price;
   late final TextEditingController _capacity;
+  late final TextEditingController _imageUrl;
 
   String _status = 'upcoming';
   bool _featured = false;
@@ -362,6 +380,9 @@ class _EventFormDialogState extends State<_EventFormDialog> {
     super.initState();
     final e = widget.event ?? {};
     _title = TextEditingController(text: (e['title'] ?? '').toString());
+    _description =
+        TextEditingController(text: (e['description'] ?? '').toString());
+    _address = TextEditingController(text: (e['address'] ?? '').toString());
     _category = TextEditingController(
       text: (e['category'] ?? 'Fan Convention').toString(),
     );
@@ -373,6 +394,8 @@ class _EventFormDialogState extends State<_EventFormDialog> {
     );
     _price = TextEditingController(text: (e['ticket_price'] ?? '0').toString());
     _capacity = TextEditingController(text: (e['capacity'] ?? '0').toString());
+    _imageUrl = TextEditingController(text: (e['image_url'] ?? '').toString());
+    _imageUrl.addListener(() => setState(() {}));
     _status = (e['status'] ?? 'upcoming').toString();
     _featured = e['is_featured'] is num
         ? (e['is_featured'] as num) != 0
@@ -382,6 +405,8 @@ class _EventFormDialogState extends State<_EventFormDialog> {
   @override
   void dispose() {
     _title.dispose();
+    _description.dispose();
+    _address.dispose();
     _category.dispose();
     _city.dispose();
     _venue.dispose();
@@ -389,6 +414,7 @@ class _EventFormDialogState extends State<_EventFormDialog> {
     _time.dispose();
     _price.dispose();
     _capacity.dispose();
+    _imageUrl.dispose();
     super.dispose();
   }
 
@@ -412,6 +438,9 @@ class _EventFormDialogState extends State<_EventFormDialog> {
 
     final body = <String, dynamic>{
       'title': _title.text.trim(),
+      'description':
+          _description.text.trim().isNotEmpty ? _description.text.trim() : null,
+      'address': _address.text.trim().isNotEmpty ? _address.text.trim() : null,
       'category': _category.text.trim(),
       'city_name': _city.text.trim(),
       'venue_name': _venue.text.trim(),
@@ -419,6 +448,7 @@ class _EventFormDialogState extends State<_EventFormDialog> {
       'start_time': _time.text.trim(),
       'ticket_price': num.tryParse(_price.text.trim()) ?? 0,
       'capacity': num.tryParse(_capacity.text.trim()) ?? 0,
+      'image_url': _imageUrl.text.trim().isNotEmpty ? _imageUrl.text.trim() : null,
       'status': _status,
       'is_featured': _featured,
     };
@@ -562,7 +592,6 @@ class _EventFormDialogState extends State<_EventFormDialog> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 13),
                 TextFormField(
                   controller: _capacity,
                   keyboardType: TextInputType.number,
@@ -570,8 +599,77 @@ class _EventFormDialogState extends State<_EventFormDialog> {
                   decoration: const InputDecoration(labelText: 'Capacity'),
                 ),
                 const SizedBox(height: 13),
+                TextFormField(
+                  controller: _address,
+                  style: TextStyle(color: AdminTheme.textPrimary),
+                  decoration: const InputDecoration(
+                    labelText: 'Full Address / Location',
+                    hintText: 'e.g. Hall 4, Expo Centre, Main University Rd',
+                  ),
+                ),
+                const SizedBox(height: 13),
+                TextFormField(
+                  controller: _description,
+                  maxLines: 3,
+                  style: TextStyle(color: AdminTheme.textPrimary),
+                  decoration: const InputDecoration(
+                    labelText: 'Event Description',
+                    hintText: 'Describe schedule, highlights, guests...',
+                  ),
+                ),
+                const SizedBox(height: 13),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    AdminImageThumbnail(
+                      imageUrl: _imageUrl.text.trim(),
+                      fallbackIcon: Icons.calendar_month_rounded,
+                      fallbackColor: AdminTheme.pink,
+                      size: 52,
+                      radius: 12,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _imageUrl,
+                        style: TextStyle(color: AdminTheme.textPrimary),
+                        decoration: const InputDecoration(
+                          labelText: 'Banner Image URL or Asset Path',
+                          prefixIcon: Icon(Icons.image_outlined, size: 18),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
-                  initialValue: _status,
+                  dropdownColor: AdminTheme.surfaceAlt,
+                  style: TextStyle(color: AdminTheme.textSecondary, fontSize: 12.5),
+                  decoration: const InputDecoration(
+                    labelText: 'Choose Bundled Event Banner (Optional)',
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: '', child: Text('Custom / manual path')),
+                    DropdownMenuItem(value: 'assets/images/events/anime_expo_2025.jpg', child: Text('Anime Expo 2025')),
+                    DropdownMenuItem(value: 'assets/images/events/fan_convention.jpg', child: Text('Fan Convention Banner')),
+                    DropdownMenuItem(value: 'assets/images/events/cosplay_meetup.jpg', child: Text('Cosplay Meetup Banner')),
+                    DropdownMenuItem(value: 'assets/images/events/comic_con.jpg', child: Text('Comic Con Banner')),
+                    DropdownMenuItem(value: 'assets/images/events/screening.jpg', child: Text('Screening Banner')),
+                    DropdownMenuItem(value: 'assets/images/events/gaming_tournament.jpg', child: Text('Gaming Tournament Banner')),
+                    DropdownMenuItem(value: 'assets/images/events/concert.jpg', child: Text('Concert / Live Banner')),
+                    DropdownMenuItem(value: 'assets/images/events/fan_meetup.jpg', child: Text('Fan Meetup Banner')),
+                    DropdownMenuItem(value: 'assets/images/events/workshop.jpg', child: Text('Workshop Banner')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null && val.isNotEmpty) {
+                      setState(() => _imageUrl.text = val);
+                    }
+                  },
+                ),
+                const SizedBox(height: 13),
+                DropdownButtonFormField<String>(
+                  value: _status,
                   dropdownColor: AdminTheme.surfaceAlt,
                   style: TextStyle(color: AdminTheme.textPrimary),
                   decoration: const InputDecoration(labelText: 'Status'),
@@ -597,7 +695,7 @@ class _EventFormDialogState extends State<_EventFormDialog> {
                   value: _featured,
                   onChanged: (value) => setState(() => _featured = value),
                   contentPadding: EdgeInsets.zero,
-                  activeThumbColor: AdminTheme.amber,
+                  activeColor: AdminTheme.amber,
                   title: Text(
                     'Featured event',
                     style: TextStyle(

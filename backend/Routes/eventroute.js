@@ -23,6 +23,7 @@ import {
   toggleSaveEvent,
   getMySavedEvents,
   bookTicket,
+  confirmTicket,
   getMyTickets,
   getTicketById,
   cancelTicket,
@@ -51,6 +52,7 @@ router.get("/saved/mine", requireAuth, getMySavedEvents);
 // ------------------------------- tickets -------------------------------
 router.get("/tickets/mine", requireAuth, getMyTickets);
 router.get("/tickets/:ticketId", requireAuth, getTicketById);
+router.post("/tickets/:ticketId/confirm", requireAuth, confirmTicket);
 router.delete("/tickets/:ticketId", requireAuth, cancelTicket);
 
 // --------------------------- create / manage ---------------------------

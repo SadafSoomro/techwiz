@@ -8,15 +8,18 @@
 // frame, so the user never sees a bare loading bar on an empty background.
 _flutter.loader.load({
   onEntrypointLoaded: async function (engineInitializer) {
+    if (window.__fvSetProgress) window.__fvSetProgress(80);
     const appRunner = await engineInitializer.initializeEngine();
+    if (window.__fvSetProgress) window.__fvSetProgress(95);
     await appRunner.runApp();
+    if (window.__fvCompleteProgress) window.__fvCompleteProgress();
 
     const splash = document.getElementById('fv-boot-splash');
     if (splash) {
       splash.style.opacity = '0';
       window.setTimeout(function () {
         splash.remove();
-      }, 600);
+      }, 500);
     }
   },
 });

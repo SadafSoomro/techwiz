@@ -6,6 +6,7 @@ import '../../providers/admin_provider.dart';
 import '../../services/admin_service.dart';
 import '../../theme/admin_theme.dart';
 import '../../widgets/admin_widgets.dart';
+import '../../widgets/fandom_logo.dart';
 import 'admin_shell.dart';
 
 /// Member 6 - Admin Dashboard.
@@ -120,7 +121,7 @@ class _AdminDashboardSectionState extends State<AdminDashboardSection> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
@@ -156,6 +157,32 @@ class _AdminDashboardSectionState extends State<AdminDashboardSection> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Row(
+                      children: [
+                        const FandomLogoWidget(height: 34),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFC4B5FD).withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: const Color(0xFFC4B5FD).withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Text(
+                            'ADMIN SUITE',
+                            style: GoogleFonts.outfit(
+                              color: const Color(0xFFE0E7FF),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     Text(
                       'GOOD MORNING,',
                       style: GoogleFonts.outfit(
@@ -564,7 +591,7 @@ class _AdminDashboardSectionState extends State<AdminDashboardSection> {
         : [6.0, 13.0, 11.0, 16.0, 22.0, 25.0, 32.0];
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AdminTheme.surface,
         borderRadius: BorderRadius.circular(16),
@@ -594,27 +621,31 @@ class _AdminDashboardSectionState extends State<AdminDashboardSection> {
                 ),
               ),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Platform Overview',
-                    style: GoogleFonts.outfit(
-                      color: AdminTheme.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Platform Overview',
+                      style: GoogleFonts.outfit(
+                        color: AdminTheme.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  Text(
-                    'User growth & activity',
-                    style: TextStyle(
-                      color: AdminTheme.textMuted,
-                      fontSize: 12,
+                    Text(
+                      'User growth & activity',
+                      style: TextStyle(
+                        color: AdminTheme.textMuted,
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
@@ -671,7 +702,7 @@ class _AdminDashboardSectionState extends State<AdminDashboardSection> {
     final isLight = AdminTheme.isLight;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AdminTheme.surface,
         borderRadius: BorderRadius.circular(16),
@@ -707,9 +738,9 @@ class _AdminDashboardSectionState extends State<AdminDashboardSection> {
           _buildQuickStatRow(
             icon: Icons.person_rounded,
             iconBg: const Color(0xFF7047EB),
-            label: 'New Users',
-            value: '${stats['newThisWeek'] ?? 3}',
-            badgeText: '↑ 100%',
+            label: 'Total Users',
+            value: '${stats['totalUsers'] ?? 0}',
+            badgeText: '${stats['newThisWeek'] ?? 0} new',
             badgeColor: const Color(0xFF10B981),
           ),
           const SizedBox(height: 14),
@@ -717,27 +748,27 @@ class _AdminDashboardSectionState extends State<AdminDashboardSection> {
             icon: Icons.play_arrow_rounded,
             iconBg: const Color(0xFF6366F1),
             label: 'Content Added',
-            value: '6',
-            badgeText: '↑ 200%',
+            value: '${stats['totalContent'] ?? 0}',
+            badgeText: 'Published',
             badgeColor: const Color(0xFF10B981),
           ),
           const SizedBox(height: 14),
           _buildQuickStatRow(
             icon: Icons.calendar_today_rounded,
             iconBg: const Color(0xFFEC4899),
-            label: 'Events Booked',
-            value: '${stats['totalTickets'] ?? 0}',
-            badgeText: '→ 0%',
-            badgeColor: AdminTheme.textMuted,
+            label: 'Events Active',
+            value: '${stats['totalEvents'] ?? 0}',
+            badgeText: 'Live',
+            badgeColor: const Color(0xFFEC4899),
           ),
           const SizedBox(height: 14),
           _buildQuickStatRow(
             icon: Icons.inventory_2_rounded,
             iconBg: const Color(0xFFF59E0B),
-            label: 'Orders Placed',
-            value: '${stats['totalOrders'] ?? 1}',
-            badgeText: '↑ 100%',
-            badgeColor: const Color(0xFF10B981),
+            label: 'Products Catalog',
+            value: '${stats['totalProducts'] ?? 0}',
+            badgeText: 'Active',
+            badgeColor: const Color(0xFFF59E0B),
           ),
         ],
       ),
@@ -818,46 +849,76 @@ class _AdminDashboardSectionState extends State<AdminDashboardSection> {
   ) {
     final isLight = AdminTheme.isLight;
 
-    final activities = [
-      (
-        icon: Icons.person_rounded,
-        color: const Color(0xFF7047EB),
-        title: 'New user registered',
-        subtitle: 'A new user joined your platform',
-        time: '2 hours ago',
-      ),
-      (
-        icon: Icons.smart_display_rounded,
-        color: const Color(0xFF06B6D4),
-        title: 'Content added',
-        subtitle: "New post 'Skincare Tips' was published",
-        time: '4 hours ago',
-      ),
-      (
-        icon: Icons.inventory_2_rounded,
-        color: const Color(0xFFF59E0B),
-        title: 'Order placed',
-        subtitle: 'Order #FV-1029 has been placed',
-        time: '6 hours ago',
-      ),
-      (
-        icon: Icons.calendar_today_rounded,
-        color: const Color(0xFFEC4899),
-        title: 'Event booked',
-        subtitle: "A ticket was booked for 'Community Meetup'",
-        time: '8 hours ago',
-      ),
-      (
-        icon: Icons.person_rounded,
-        color: const Color(0xFF7047EB),
-        title: 'New user registered',
-        subtitle: 'A new user joined your platform',
-        time: '10 hours ago',
-      ),
-    ];
+    final activities = recentActivity.isNotEmpty
+        ? recentActivity.map((raw) {
+            final act = (raw['action'] ?? '').toString();
+            final details = (raw['details'] ?? 'Platform activity logged').toString();
+            final created = (raw['created_at'] ?? '').toString();
+
+            IconData icon = Icons.bolt_rounded;
+            Color color = const Color(0xFF6366F1);
+            String title = act.replaceAll('_', ' ');
+            title = title.isNotEmpty ? title[0].toUpperCase() + title.substring(1) : 'Activity';
+
+            if (act.contains('user')) {
+              icon = Icons.person_rounded;
+              color = const Color(0xFF7047EB);
+            } else if (act.contains('product') || act.contains('order')) {
+              icon = Icons.inventory_2_rounded;
+              color = const Color(0xFFF59E0B);
+            } else if (act.contains('event')) {
+              icon = Icons.calendar_today_rounded;
+              color = const Color(0xFFEC4899);
+            } else if (act.contains('content')) {
+              icon = Icons.smart_display_rounded;
+              color = const Color(0xFF06B6D4);
+            } else if (act.contains('login')) {
+              icon = Icons.lock_rounded;
+              color = const Color(0xFF10B981);
+            } else if (act.contains('category')) {
+              icon = Icons.category_rounded;
+              color = const Color(0xFF8B5CF6);
+            }
+
+            String timeAgoText = 'Just now';
+            if (created.isNotEmpty) {
+              final dt = DateTime.tryParse(created);
+              if (dt != null) {
+                final diff = DateTime.now().difference(dt);
+                if (diff.inDays > 0) {
+                  timeAgoText = '${diff.inDays}d ago';
+                } else if (diff.inHours > 0) {
+                  timeAgoText = '${diff.inHours}h ago';
+                } else if (diff.inMinutes > 0) {
+                  timeAgoText = '${diff.inMinutes}m ago';
+                } else {
+                  timeAgoText = 'just now';
+                }
+              } else {
+                timeAgoText = created.split(' ').first;
+              }
+            }
+
+            return (
+              icon: icon,
+              color: color,
+              title: title,
+              subtitle: details,
+              time: timeAgoText,
+            );
+          }).toList()
+        : [
+            (
+              icon: Icons.person_rounded,
+              color: const Color(0xFF7047EB),
+              title: 'Platform Ready',
+              subtitle: 'All modules and admin actions active',
+              time: 'Live',
+            ),
+          ];
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AdminTheme.surface,
         borderRadius: BorderRadius.circular(16),
@@ -887,27 +948,31 @@ class _AdminDashboardSectionState extends State<AdminDashboardSection> {
                 ),
               ),
               const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Recent Activity',
-                    style: GoogleFonts.outfit(
-                      color: AdminTheme.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Recent Activity',
+                      style: GoogleFonts.outfit(
+                        color: AdminTheme.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  Text(
-                    'Latest updates from your platform',
-                    style: TextStyle(
-                      color: AdminTheme.textMuted,
-                      fontSize: 12,
+                    Text(
+                      'Latest updates from your platform',
+                      style: TextStyle(
+                        color: AdminTheme.textMuted,
+                        fontSize: 12,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Material(
                 color: Colors.transparent,
                 child: InkWell(
@@ -1023,16 +1088,26 @@ class _AdminDashboardSectionState extends State<AdminDashboardSection> {
   Widget _buildFooter() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-      child: Row(
+      child: Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        runSpacing: 6,
+        spacing: 12,
         children: [
-          Text(
-            'FandomVerse Admin Panel • v1.0',
-            style: TextStyle(
-              color: AdminTheme.textMuted,
-              fontSize: 12,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const FandomLogoWidget(height: 22),
+              const SizedBox(width: 8),
+              Text(
+                'FandomVerse Admin Panel • v1.0',
+                style: TextStyle(
+                  color: AdminTheme.textMuted,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
-          const Spacer(),
           Text(
             'Same passion. Bigger community. ♡',
             style: GoogleFonts.caveat(

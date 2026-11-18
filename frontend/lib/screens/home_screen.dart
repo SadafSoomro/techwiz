@@ -6,6 +6,7 @@ import '../models/content_models.dart';
 import '../models/profile_models.dart';
 import '../providers/community_provider.dart';
 import '../providers/content_provider.dart';
+import '../providers/event_provider.dart';
 import '../providers/profile_provider.dart';
 import '../theme/app_theme.dart';
 import '../theme/content_theme.dart';
@@ -17,6 +18,7 @@ import '../widgets/app_image.dart';
 import '../widgets/content_widgets.dart';
 import '../widgets/fandom_logo.dart';
 import '../widgets/profile_widgets.dart';
+import '../services/location_service.dart';
 import 'ai_helper_screen.dart';
 import 'bookmarks_screen.dart';
 import 'discussions_screen.dart';
@@ -64,24 +66,65 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-
-      // Only the data the *visible* tab needs is fetched here.
-      //
-      // Previously this method also kicked off discover, community overview,
-      // events (x2), shop (x4) and the AI helper - roughly a dozen requests
-      // racing each other on startup, on top of the six tab screens that
-      // IndexedStack built immediately. Each tab now loads its own data the
-      // first time it is opened instead (see _LazyIndexedStack below).
 
       // MEMBER 1 - Profile & Home dashboard aggregate.
       context.read<ProfileProvider>().loadDashboard();
 
-      // The Home header shows an unread-notification badge. This is a single
-      // lightweight call, so it stays on the startup path.
+      // The Home header shows an unread-notification badge.
       context.read<CommunityProvider>().refreshUnreadCount();
+
+      // Check location permission on Home Screen
+      final allowed = await LocationService.isPermissionGranted();
+      if (!mounted) return;
+      if (!allowed) {
+        _showCenterLocationDialog();
+      }
     });
+  }
+
+  void _showCenterLocationDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => _HomeLocationDialog(
+        onTraced: () {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle_rounded, color: AppTheme.primaryColor),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Location traced successfully',
+                        style: GoogleFonts.inter(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                backgroundColor: const Color(0xFF161B22),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.4),
+                  ),
+                ),
+                margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                duration: const Duration(seconds: 3),
+              ),
+            );
+        },
+      ),
+    );
   }
 
   void _openTab(int index) {
@@ -327,7 +370,7 @@ class _NavItem extends StatelessWidget {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 280),
               curve: Curves.easeOutCubic,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 gradient: selected
                     ? LinearGradient(
@@ -357,7 +400,7 @@ class _NavItem extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 2),
           AnimatedDefaultTextStyle(
             duration: const Duration(milliseconds: 280),
             curve: Curves.easeOutCubic,
@@ -367,7 +410,7 @@ class _NavItem extends StatelessWidget {
               color: selected ? Colors.white : AppTheme.textMuted,
               letterSpacing: 0.1,
             ),
-            child: Text(label, maxLines: 1, overflow: TextOverflow.clip),
+            child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis),
           ),
         ],
       ),
@@ -545,7 +588,7 @@ class _HomeDashboardTab extends StatelessWidget {
             FadeSlideIn(
               delay: const Duration(milliseconds: 180),
               child: SizedBox(
-                height: 158,
+                height: 178,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: dashboard.continueWatching.length,
@@ -601,20 +644,6 @@ class _HomeDashboardTab extends StatelessWidget {
                       showSummary: true,
                       onTap: () => _openContent(context, item),
                     ),
-                  ),
-                );
-              },
-            ),
-            // compact list for the remaining stories
-            ...List.generate(
-              dashboard.latestNews.skip(2).length,
-              (index) {
-                final item = dashboard.latestNews.skip(2).elementAt(index);
-                return FadeSlideIn(
-                  delay: Duration(milliseconds: 260 + index * 50),
-                  child: ContentRowTile(
-                    item: item,
-                    onTap: () => _openContent(context, item),
                   ),
                 );
               },
@@ -968,169 +997,7 @@ class _HomeDashboardTab extends StatelessWidget {
 
   Widget _buildGreetingCard(BuildContext context, ProfileUser user) {
     final stats = context.watch<ProfileProvider>().stats;
-
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: ProfileTheme.primary.withValues(alpha: 0.35),
-            blurRadius: 20,
-            offset: const Offset(0, 9),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: AppImage(
-                path: 'assets/images/fandoms/anime.jpg',
-                fit: BoxFit.cover,
-                fallbackColors: const [Color(0xFF3B82F6), Color(0xFF8B5CF6)],
-              ),
-            ),
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      const Color(0xFF0D111D).withValues(alpha: 0.92),
-                      const Color(0xFF1D4ED8).withValues(alpha: 0.82),
-                      const Color(0xFF8B5CF6).withValues(alpha: 0.75),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${context.watch<ProfileProvider>().dashboard?.greeting ?? 'Welcome'}, ${user.name.split(' ').first}!',
-                              style: GoogleFonts.outfit(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              'Ready to explore your fandoms?',
-                              style: GoogleFonts.inter(
-                                color: Colors.white.withValues(alpha: 0.9),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding:
-                            const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          borderRadius: BorderRadius.circular(14),
-                          border:
-                              Border.all(color: Colors.white.withValues(alpha: 0.35)),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Lv ${user.level}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              ProfileTheme.levelName(user.level),
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 8.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      _greetingStat(Icons.workspace_premium_rounded,
-                          '${user.points}', 'Points'),
-                      Container(
-                        width: 1,
-                        height: 28,
-                        color: Colors.white.withValues(alpha: 0.22),
-                      ),
-                      _greetingStat(Icons.auto_awesome_rounded,
-                          '${stats.fandomCount}', 'Fandoms'),
-                      Container(
-                        width: 1,
-                        height: 28,
-                        color: Colors.white.withValues(alpha: 0.22),
-                      ),
-                      _greetingStat(Icons.task_alt_rounded,
-                          '${stats.completedTasks}/${stats.totalTasks}', 'Tasks'),
-                      Container(
-                        width: 1,
-                        height: 28,
-                        color: Colors.white.withValues(alpha: 0.22),
-                      ),
-                      _greetingStat(Icons.download_done_rounded,
-                          '${stats.offlineCount}', 'Offline'),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  AnimatedProgressBar(
-                    value: user.levelProgress,
-                    height: 6,
-                    colors: const [Colors.white, Color(0xFFE0E7FF)],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _greetingStat(IconData icon, String value, String label) {
-    return Expanded(
-      child: Column(
-        children: [
-          Icon(icon, color: Colors.white70, size: 14),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12.5,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white70, fontSize: 9),
-          ),
-        ],
-      ),
-    );
+    return _AnimatedGreetingBanner(user: user, stats: stats);
   }
 
   Widget _buildSearchBar(BuildContext context) {
@@ -1323,6 +1190,8 @@ class _HomeDashboardTab extends StatelessWidget {
               Positioned.fill(
                 child: AppImage(
                   path: image,
+                  width: double.infinity,
+                  height: double.infinity,
                   fit: BoxFit.cover,
                   fallbackColors: [EventTheme.primary, EventTheme.secondary],
                 ),
@@ -1331,13 +1200,14 @@ class _HomeDashboardTab extends StatelessWidget {
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
                       colors: [
-                        Colors.black.withValues(alpha: 0.3),
-                        Colors.black.withValues(alpha: 0.88),
+                        Colors.black.withValues(alpha: 0.90),
+                        Colors.black.withValues(alpha: 0.65),
+                        Colors.black.withValues(alpha: 0.25),
                       ],
-                      stops: const [0.2, 1],
+                      stops: const [0.0, 0.55, 1.0],
                     ),
                   ),
                 ),
@@ -1424,68 +1294,90 @@ class _HomeDashboardTab extends StatelessWidget {
       child: PressScale(
         onTap: onTap,
         child: Container(
-          height: 56,
+          height: 58,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color.withValues(alpha: 0.28),
+                const Color(0xFF131926),
+                const Color(0xFF0C1019),
+              ],
+              stops: const [0.0, 0.55, 1.0],
+            ),
+            border: Border.all(
+              color: color.withValues(alpha: 0.35),
+              width: 1.2,
+            ),
             boxShadow: [
               BoxShadow(
-                color: color.withValues(alpha: 0.2),
-                blurRadius: 10,
+                color: color.withValues(alpha: 0.22),
+                blurRadius: 12,
                 offset: const Offset(0, 4),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(17),
             child: Stack(
               fit: StackFit.expand,
               children: [
-                if (imagePath != null && imagePath.isNotEmpty)
-                  AppImage(
-                    path: imagePath,
-                    fit: BoxFit.cover,
-                    fallbackColors: [color, AppTheme.cardColor],
-                  )
-                else
-                  Container(color: AppTheme.cardColor),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerLeft,
-                      end: Alignment.centerRight,
-                      colors: [
-                        Colors.black.withValues(alpha: 0.88),
-                        Colors.black.withValues(alpha: 0.6),
-                      ],
-                    ),
+                // Subtle watermark icon on right side filling background
+                Positioned(
+                  right: -6,
+                  bottom: -8,
+                  child: Opacity(
+                    opacity: 0.12,
+                    child: Icon(icon, size: 54, color: color),
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   child: Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(7),
+                        padding: const EdgeInsets.all(7.5),
                         decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.35),
+                          gradient: LinearGradient(
+                            colors: [
+                              color.withValues(alpha: 0.50),
+                              color.withValues(alpha: 0.20),
+                            ],
+                          ),
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                          border: Border.all(
+                            color: color.withValues(alpha: 0.70),
+                            width: 1.4,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: color.withValues(alpha: 0.35),
+                              blurRadius: 8,
+                            ),
+                          ],
                         ),
                         child: Icon(icon, color: Colors.white, size: 16),
                       ),
-                      const SizedBox(width: 9),
+                      const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.outfit(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            fontSize: 13,
+                            fontSize: 13.5,
+                            letterSpacing: 0.2,
                           ),
                         ),
+                      ),
+                      Icon(
+                        Icons.chevron_right_rounded,
+                        size: 16,
+                        color: Colors.white.withValues(alpha: 0.35),
                       ),
                     ],
                   ),
@@ -1544,7 +1436,7 @@ class _TrendingFandomCard extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 AppImage(
-                  path: ProfileTheme.fandomArtwork(fandom.name),
+                  path: _homeAnimeArtwork(fandom.name),
                   fallbackColors: [color, ProfileTheme.primaryDark],
                   fallbackIcon: ProfileTheme.fandomIcon(fandom.name),
                 ),
@@ -1629,24 +1521,58 @@ class _TrendingFandomCard extends StatelessWidget {
   }
 }
 
-class _ContinueCard extends StatelessWidget {
+class _ContinueCard extends StatefulWidget {
   const _ContinueCard({required this.item, this.onTap});
 
   final ContinueWatching item;
   final VoidCallback? onTap;
 
   @override
+  State<_ContinueCard> createState() => _ContinueCardState();
+}
+
+class _ContinueCardState extends State<_ContinueCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat(reverse: true);
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.05).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final color = ContentTheme.contentTypeColor(item.contentType);
+    final color = ContentTheme.contentTypeColor(widget.item.contentType);
 
     return PressScale(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
-        width: 208,
+        width: 216,
         decoration: BoxDecoration(
           color: ContentTheme.card,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1655,20 +1581,70 @@ class _ContinueCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(17),
               ),
-              child: AppImage(
-                path: item.imageUrl,
-                height: 84,
-                fallbackIcon: ContentTheme.contentTypeIcon(item.contentType),
-                fallbackColors: [color, ContentTheme.primaryDark],
+              child: SizedBox(
+                height: 104,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ScaleTransition(
+                      scale: _scaleAnimation,
+                      child: AppImage(
+                        path: widget.item.imageUrl,
+                        width: double.infinity,
+                        height: 104,
+                        fit: BoxFit.cover,
+                        fallbackIcon: ContentTheme.contentTypeIcon(widget.item.contentType),
+                        fallbackColors: [color, ContentTheme.primaryDark],
+                      ),
+                    ),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withValues(alpha: 0.10),
+                            Colors.black.withValues(alpha: 0.65),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Center(
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.50),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            width: 1.3,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: color.withValues(alpha: 0.45),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(11, 9, 11, 10),
+              padding: const EdgeInsets.fromLTRB(11, 8, 11, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item.title,
+                    widget.item.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -1677,9 +1653,9 @@ class _ContinueCard extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  const SizedBox(height: 7),
+                  const SizedBox(height: 6),
                   AnimatedProgressBar(
-                    value: item.percentage / 100,
+                    value: widget.item.percentage / 100,
                     height: 5,
                     colors: [color, ContentTheme.secondary],
                   ),
@@ -1687,13 +1663,13 @@ class _ContinueCard extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        '${item.percentage}% complete',
+                        '${widget.item.percentage}% complete',
                         style: const TextStyle(
                           color: ContentTheme.textMuted,
                           fontSize: 9.5,
                         ),
                       ),
-                      if (item.isOffline) ...[
+                      if (widget.item.isOffline) ...[
                         const Spacer(),
                         const Icon(Icons.download_done_rounded,
                             size: 11, color: ContentTheme.primary),
@@ -1705,6 +1681,231 @@ class _ContinueCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _AnimatedGreetingBanner extends StatefulWidget {
+  final ProfileUser user;
+  final ProfileStats stats;
+
+  const _AnimatedGreetingBanner({
+    required this.user,
+    required this.stats,
+  });
+
+  @override
+  State<_AnimatedGreetingBanner> createState() => _AnimatedGreetingBannerState();
+}
+
+class _AnimatedGreetingBannerState extends State<_AnimatedGreetingBanner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 7),
+    )..repeat(reverse: true);
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 1.07).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = widget.user;
+    final stats = widget.stats;
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: ProfileTheme.primary.withValues(alpha: 0.35),
+            blurRadius: 22,
+            offset: const Offset(0, 9),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Stack(
+          children: [
+            // Full width animated cinematic cover image filling the whole box
+            Positioned.fill(
+              child: ScaleTransition(
+                scale: _scaleAnimation,
+                child: Image.asset(
+                  'assets/images/content/gallery_01.jpg',
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset(
+                      'assets/images/fandoms/anime.jpg',
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: double.infinity,
+                    );
+                  },
+                ),
+              ),
+            ),
+            // Semi-transparent cinematic cyber glass gradient overlay
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      const Color(0xFF0F172A).withValues(alpha: 0.68),
+                      const Color(0xFF1E1B4B).withValues(alpha: 0.62),
+                      const Color(0xFF090D16).withValues(alpha: 0.88),
+                    ],
+                    stops: const [0.0, 0.45, 1.0],
+                  ),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${context.watch<ProfileProvider>().dashboard?.greeting ?? 'Welcome'}, ${user.name.split(' ').first}!',
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Ready to explore your fandoms?',
+                              style: GoogleFonts.inter(
+                                color: Colors.white.withValues(alpha: 0.9),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.45),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.35)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.3),
+                              blurRadius: 8,
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Lv ${user.level}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              ProfileTheme.levelName(user.level),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 8.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      _greetingStat(Icons.workspace_premium_rounded,
+                          '${user.points}', 'Points'),
+                      Container(
+                        width: 1,
+                        height: 28,
+                        color: Colors.white.withValues(alpha: 0.22),
+                      ),
+                      _greetingStat(Icons.auto_awesome_rounded,
+                          '${stats.fandomCount}', 'Fandoms'),
+                      Container(
+                        width: 1,
+                        height: 28,
+                        color: Colors.white.withValues(alpha: 0.22),
+                      ),
+                      _greetingStat(Icons.task_alt_rounded,
+                          '${stats.completedTasks}/${stats.totalTasks}', 'Tasks'),
+                      Container(
+                        width: 1,
+                        height: 28,
+                        color: Colors.white.withValues(alpha: 0.22),
+                      ),
+                      _greetingStat(Icons.download_done_rounded,
+                          '${stats.offlineCount}', 'Offline'),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  AnimatedProgressBar(
+                    value: user.levelProgress,
+                    height: 6,
+                    colors: const [Colors.white, Color(0xFFE0E7FF)],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _greetingStat(IconData icon, String value, String label) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.white70, size: 14),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 12.5,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 9),
+          ),
+        ],
       ),
     );
   }
@@ -1761,3 +1962,250 @@ class _BadgeChip extends StatelessWidget {
     );
   }
 }
+
+/// Anime-styled artwork mapped specifically for Home Screen trending fandoms.
+String _homeAnimeArtwork(String fandom) {
+  switch (fandom.toLowerCase().trim()) {
+    case 'anime':
+      return 'assets/images/fandoms/anime_home.jpg';
+    case 'gaming':
+      return 'assets/images/fandoms/gaming_home.jpg';
+    case 'sci-fi':
+    case 'scifi':
+      return 'assets/images/fandoms/scifi_home.jpg';
+    case 'comics':
+      return 'assets/images/fandoms/comics_home.jpg';
+    case 'movies & tv':
+    case 'movies_tv':
+    case 'movies':
+      return 'assets/images/fandoms/moviestv_home.jpg';
+    case 'music':
+    case 'music / k-pop':
+    case 'music/k-pop':
+    case 'k-pop':
+      return 'assets/images/fandoms/music_home.jpg';
+    case 'sports':
+      return 'assets/images/fandoms/sports_home.jpg';
+    default:
+      return ProfileTheme.fandomArtwork(fandom);
+  }
+}
+
+/// Modern centered location alert dialog for Home Screen.
+class _HomeLocationDialog extends StatefulWidget {
+  final VoidCallback onTraced;
+
+  const _HomeLocationDialog({required this.onTraced});
+
+  @override
+  State<_HomeLocationDialog> createState() => _HomeLocationDialogState();
+}
+
+class _HomeLocationDialogState extends State<_HomeLocationDialog> {
+  bool _isTracing = false;
+
+  Future<void> _handleAllow() async {
+    setState(() => _isTracing = true);
+
+    try {
+      final loc = await LocationService.detectCurrentLocation();
+      await LocationService.saveLocation(loc);
+
+      if (!mounted) return;
+      final ep = context.read<EventProvider>();
+      ep.useDeviceLocation(
+        lat: loc.latitude,
+        lng: loc.longitude,
+        city: loc.city,
+        area: loc.area,
+      );
+      await ep.loadNearby(radiusKm: 200);
+      await ep.loadMapPins(city: loc.city);
+
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      widget.onTraced();
+    } catch (_) {
+      if (!mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      widget.onTraced();
+    }
+  }
+
+  Future<void> _handleDefault() async {
+    await LocationService.saveLocation(LocationService.defaultLocation);
+    if (!mounted) return;
+    final ep = context.read<EventProvider>();
+    ep.useDeviceLocation(
+      lat: LocationService.defaultLocation.latitude,
+      lng: LocationService.defaultLocation.longitude,
+      city: LocationService.defaultLocation.city,
+      area: LocationService.defaultLocation.area,
+    );
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+    widget.onTraced();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 26),
+        decoration: BoxDecoration(
+          color: const Color(0xFF131722),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: AppTheme.primaryColor.withValues(alpha: 0.4),
+            width: 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.primaryColor.withValues(alpha: 0.25),
+              blurRadius: 30,
+              offset: const Offset(0, 10),
+            ),
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.8),
+              blurRadius: 20,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Glowing location radar badge
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppTheme.primaryColor.withValues(alpha: 0.25),
+                    AppTheme.secondaryColor.withValues(alpha: 0.15),
+                  ],
+                ),
+                border: Border.all(
+                  color: AppTheme.primaryColor.withValues(alpha: 0.5),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.3),
+                    blurRadius: 20,
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.location_on_rounded,
+                color: AppTheme.primaryColor,
+                size: 36,
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // Title
+            Text(
+              'Allow Location Access',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.outfit(
+                color: Colors.white,
+                fontSize: 21,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Subtitle
+            Text(
+              'Trace your live area to discover local anime conventions, gaming tournaments, fan meetups and interactive map pins near you.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                color: Colors.white70,
+                fontSize: 13,
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Main Action Button
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _isTracing ? null : _handleAllow,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  foregroundColor: Colors.black,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+                child: _isTracing
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'Tracing location & area...',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.my_location_rounded, size: 18),
+                          const SizedBox(width: 8),
+                          Text(
+                            'ALLOW LOCATION',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // Continue with default
+            TextButton(
+              onPressed: _isTracing ? null : _handleDefault,
+              child: Text(
+                'Continue with default area',
+                style: GoogleFonts.inter(
+                  color: Colors.white.withValues(alpha: 0.5),
+                  fontSize: 12,
+                  decoration: TextDecoration.underline,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+

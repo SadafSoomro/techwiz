@@ -188,7 +188,7 @@ class _AiHelperScreenState extends State<AiHelperScreen> {
     final provider = context.watch<AiProvider>();
 
     return ShopScaffold(
-      title: 'AI For Helper',
+      title: 'AI Fan Helper',
       subtitle: provider.externalAiEnabled
           ? 'Knowledge base + AI API'
           : 'Offline fandom knowledge base',

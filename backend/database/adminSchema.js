@@ -44,6 +44,10 @@ export function initAdminSchema() {
     `);
 
     db.run(`CREATE INDEX IF NOT EXISTS idx_admin_logs_created ON admin_logs(created_at)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_admin_logs_level ON admin_logs(level)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_users_created ON users(created_at)`);
 
     // --------------------- broadcast notifications ------------------------
     // Records every announcement the admin pushes to users.

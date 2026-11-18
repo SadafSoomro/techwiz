@@ -19,7 +19,7 @@ import {
   updateSettings,
   getHomeDashboard,
 } from "../Controllers/profilecontroller.js";
-import { requireAuth } from "../middleware/authmiddleware.js";
+import { requireAuth, optionalAuth } from "../middleware/authmiddleware.js";
 
 const router = Router();
 
@@ -32,7 +32,7 @@ router.put("/me", requireAuth, updateMyProfile);
 router.get("/avatars", requireAuth, getAvatars);
 
 // Fandom selection
-router.get("/fandoms", requireAuth, getFandomSelection);
+router.get("/fandoms", optionalAuth, getFandomSelection);
 router.put("/fandoms", requireAuth, saveFandomSelection);
 
 // Public badges

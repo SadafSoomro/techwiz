@@ -138,7 +138,7 @@ class _AdminSecuritySectionState extends State<AdminSecuritySection> {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: AdminTheme.screenPadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -398,7 +398,7 @@ class _AdminSecuritySectionState extends State<AdminSecuritySection> {
       value: value,
       onChanged: _saving ? null : (next) => _toggle(key, next),
       contentPadding: EdgeInsets.zero,
-      activeThumbColor: color,
+      activeColor: color,
       secondary: Container(
         padding: const EdgeInsets.all(9),
         decoration: BoxDecoration(

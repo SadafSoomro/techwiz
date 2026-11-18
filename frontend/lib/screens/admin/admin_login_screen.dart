@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../providers/admin_provider.dart';
 import '../../theme/admin_theme.dart';
 import '../../widgets/admin_widgets.dart';
+import '../../widgets/fandom_logo.dart';
 import 'admin_shell.dart';
 
 /// Member 6 - Admin Login.
@@ -129,34 +130,36 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
   Widget _buildBrandMark() {
     return Column(
       children: [
+        const FandomLogoWidget(height: 96),
+        const SizedBox(height: 14),
         Container(
-          width: 82,
-          height: 82,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           decoration: BoxDecoration(
-            gradient: AdminTheme.brandGradient,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: AdminTheme.primary.withValues(alpha: 0.45),
-                blurRadius: 28,
-                offset: const Offset(0, 10),
+            color: const Color(0xFF7047EB).withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: const Color(0xFFA855F7).withValues(alpha: 0.4),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Icon(
+                Icons.admin_panel_settings_rounded,
+                size: 14,
+                color: Color(0xFFC084FC),
+              ),
+              SizedBox(width: 6),
+              Text(
+                'ADMIN CONSOLE',
+                style: TextStyle(
+                  color: Color(0xFFC084FC),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.5,
+                ),
               ),
             ],
-          ),
-          child: const Icon(
-            Icons.admin_panel_settings_rounded,
-            color: Colors.white,
-            size: 40,
-          ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'FANDOM VERSE',
-          style: GoogleFonts.outfit(
-            color: AdminTheme.textPrimary,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 3,
           ),
         ),
       ],

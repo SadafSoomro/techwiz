@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
 import 'admin_storage.dart';
+import 'api_client.dart';
 
 /// Thin HTTP layer for the Member 6 admin portal.
 ///
@@ -14,8 +15,10 @@ class AdminService {
   /// Set by AdminProvider; invoked when the server rejects our token.
   static void Function()? onUnauthorized;
 
+  static const Duration timeout = Duration(seconds: 15);
+
   static Future<Map<String, String>> _headers() async {
-    final token = await AdminStorage.getToken();
+    final token = AdminStorage.tokenOrNull ?? await AdminStorage.getToken();
     return {
       'Content-Type': 'application/json',
       if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
@@ -38,19 +41,29 @@ class AdminService {
       late final http.Response response;
       switch (method) {
         case 'POST':
-          response = await http.post(uri, headers: headers, body: encoded);
+          response = await ApiClient.client
+              .post(uri, headers: headers, body: encoded)
+              .timeout(timeout);
           break;
         case 'PUT':
-          response = await http.put(uri, headers: headers, body: encoded);
+          response = await ApiClient.client
+              .put(uri, headers: headers, body: encoded)
+              .timeout(timeout);
           break;
         case 'PATCH':
-          response = await http.patch(uri, headers: headers, body: encoded);
+          response = await ApiClient.client
+              .patch(uri, headers: headers, body: encoded)
+              .timeout(timeout);
           break;
         case 'DELETE':
-          response = await http.delete(uri, headers: headers, body: encoded);
+          response = await ApiClient.client
+              .delete(uri, headers: headers, body: encoded)
+              .timeout(timeout);
           break;
         default:
-          response = await http.get(uri, headers: headers);
+          response = await ApiClient.client
+              .get(uri, headers: headers)
+              .timeout(timeout);
       }
 
       if (response.statusCode == 401) {
@@ -210,6 +223,26 @@ class AdminService {
   static Future<Map<String, dynamic>> deleteEvent(int id) =>
       _send('DELETE', ApiConfig.adminEventUrl(id));
 
+  // ------------------------------------------------------------- tickets
+
+  static Future<Map<String, dynamic>> tickets({
+    String search = '',
+    String status = '',
+    int page = 1,
+    int limit = 20,
+  }) => _send(
+    'GET',
+    ApiConfig.adminTicketsUrl,
+    query: {'search': search, 'status': status, 'page': page, 'limit': limit},
+  );
+
+  static Future<Map<String, dynamic>> setTicketStatus(int id, String status) =>
+      _send(
+        'PATCH',
+        ApiConfig.adminTicketStatusUrl(id),
+        body: {'status': status},
+      );
+
   // -------------------------------------------------------------- products
 
   static Future<Map<String, dynamic>> products({
@@ -234,6 +267,37 @@ class AdminService {
 
   static Future<Map<String, dynamic>> deleteProduct(int id) =>
       _send('DELETE', ApiConfig.adminProductUrl(id));
+
+  // ---------------------------------------------------------------- orders
+
+  static Future<Map<String, dynamic>> orders({
+    String query = '',
+    String status = '',
+    String sort = 'newest',
+    int page = 1,
+    int limit = 20,
+  }) => _send(
+    'GET',
+    ApiConfig.adminOrdersUrl,
+    query: {
+      'q': query,
+      'status': status,
+      'sort': sort,
+      'page': page,
+      'limit': limit,
+    },
+  );
+
+  static Future<Map<String, dynamic>> orderDetail(int id) =>
+      _send('GET', ApiConfig.adminOrderUrl(id));
+
+  static Future<Map<String, dynamic>> updateOrderStatus(
+    int id,
+    String status,
+  ) => _send('PATCH', ApiConfig.adminOrderStatusUrl(id), body: {'status': status});
+
+  static Future<Map<String, dynamic>> deleteOrder(int id) =>
+      _send('DELETE', ApiConfig.adminOrderUrl(id));
 
   // ------------------------------------------------------------ categories
 

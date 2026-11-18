@@ -1,6 +1,6 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import 'api_client.dart';
 
 class ApiResponse {
   final bool success;
@@ -15,6 +15,24 @@ class ApiResponse {
 }
 
 class ApiService {
+  static const Duration _timeout = Duration(seconds: 12);
+
+  // Check System Status (Maintenance & Registration)
+  static Future<Map<String, dynamic>> getSystemStatus() async {
+    try {
+      final response = await ApiClient.client
+          .get(Uri.parse(ApiConfig.systemStatusUrl))
+          .timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+      }
+    } catch (_) {}
+    return {'maintenance': false, 'registration': true};
+  }
+
   // Register
   static Future<ApiResponse> register({
     required String name,
@@ -22,7 +40,7 @@ class ApiService {
     required String password,
   }) async {
     try {
-      final response = await http.post(
+      final response = await ApiClient.client.post(
         Uri.parse(ApiConfig.registerUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -30,7 +48,7 @@ class ApiService {
           'email': email.trim().toLowerCase(),
           'password': password,
         }),
-      );
+      ).timeout(_timeout);
 
       final body = jsonDecode(response.body);
       if (response.statusCode == 201 || response.statusCode == 200) {
@@ -59,14 +77,14 @@ class ApiService {
     required String code,
   }) async {
     try {
-      final response = await http.post(
+      final response = await ApiClient.client.post(
         Uri.parse(ApiConfig.verifyEmailUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'code': code.trim(),
         }),
-      );
+      ).timeout(_timeout);
 
       final body = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -89,20 +107,54 @@ class ApiService {
     }
   }
 
+  // Resend Verification Code
+  static Future<ApiResponse> resendVerificationCode({
+    required String email,
+  }) async {
+    try {
+      final response = await ApiClient.client.post(
+        Uri.parse(ApiConfig.resendCodeUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email.trim().toLowerCase(),
+        }),
+      ).timeout(_timeout);
+
+      final body = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        return ApiResponse(
+          success: true,
+          message: body['message'] ?? 'New verification code sent to your email!',
+          data: body,
+        );
+      } else {
+        return ApiResponse(
+          success: false,
+          message: body['message'] ?? 'Failed to resend verification code',
+        );
+      }
+    } catch (e) {
+      return ApiResponse(
+        success: false,
+        message: 'Network error. Please try again.',
+      );
+    }
+  }
+
   // Login
   static Future<ApiResponse> login({
     required String email,
     required String password,
   }) async {
     try {
-      final response = await http.post(
+      final response = await ApiClient.client.post(
         Uri.parse(ApiConfig.loginUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
           'password': password,
         }),
-      );
+      ).timeout(_timeout);
 
       final body = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -130,13 +182,13 @@ class ApiService {
     required String email,
   }) async {
     try {
-      final response = await http.post(
+      final response = await ApiClient.client.post(
         Uri.parse(ApiConfig.forgotPasswordUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': email.trim().toLowerCase(),
         }),
-      );
+      ).timeout(_timeout);
 
       final body = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -166,7 +218,7 @@ class ApiService {
     required String newPassword,
   }) async {
     try {
-      final response = await http.post(
+      final response = await ApiClient.client.post(
         Uri.parse(ApiConfig.resetPasswordUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -174,7 +226,7 @@ class ApiService {
           'resetCode': resetCode.trim(),
           'newPassword': newPassword,
         }),
-      );
+      ).timeout(_timeout);
 
       final body = jsonDecode(response.body);
       if (response.statusCode == 200) {
@@ -204,7 +256,7 @@ class ApiService {
     String? name,
   }) async {
     try {
-      final response = await http.post(
+      final response = await ApiClient.client.post(
         Uri.parse(ApiConfig.googleLoginUrl),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -212,7 +264,7 @@ class ApiService {
           'email': ?email?.trim().toLowerCase(),
           'name': ?name,
         }),
-      );
+      ).timeout(_timeout);
 
       final body = jsonDecode(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {

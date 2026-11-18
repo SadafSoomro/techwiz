@@ -13,6 +13,7 @@ import 'providers/event_provider.dart';
 import 'providers/profile_provider.dart';
 import 'providers/shop_provider.dart';
 import 'screens/splash_screen.dart';
+import 'services/admin_storage.dart';
 import 'services/auth_storage.dart';
 import 'theme/app_theme.dart';
 
@@ -31,10 +32,15 @@ Future<void> main() async {
   // here used to hold the very first frame hostage to ~2 MB of font data.
   unawaited(_warmUpFonts());
 
-  // Reading SharedPreferences is async and was previously done again on every
-  // single API call; doing it once here means the first request never waits.
-  // This is a local, single-digit-millisecond call.
-  await AuthStorage.preload();
+  // Reading SharedPreferences in parallel for instant session checks.
+  await Future.wait([
+    AuthStorage.preload(),
+    AdminStorage.preload(),
+  ]);
+
+  // Optimize Flutter engine image cache for rapid asset decoding and zero flicker
+  PaintingBinding.instance.imageCache.maximumSize = 150;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 120 << 20;
 
   runApp(const MyApp());
 }
@@ -93,6 +99,17 @@ class MyApp extends StatelessWidget {
         title: 'FANDOM VERSE',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
+        builder: (context, child) {
+          final mediaQuery = MediaQuery.of(context);
+          final clampedTextScaler = mediaQuery.textScaler.clamp(
+            minScaleFactor: 0.85,
+            maxScaleFactor: 1.15,
+          );
+          return MediaQuery(
+            data: mediaQuery.copyWith(textScaler: clampedTextScaler),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         home: const SplashScreen(),
       ),
     );

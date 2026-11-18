@@ -1,7 +1,7 @@
 import os
 import shutil
 
-assets_dir = r"c:\Users\TLS\Desktop\Fandomverse\TechwizProject\frontend\assets\images"
+assets_dir = r"c:\Users\TLS\Desktop\FandomVerseapp\techwiz\frontend\assets\images"
 
 artworks = {
     "luffy": os.path.join(assets_dir, "content", "luffy_lore.jpg"),

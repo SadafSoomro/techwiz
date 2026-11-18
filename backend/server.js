@@ -21,6 +21,10 @@ import { initContentSchema } from "./database/contentSchema.js";
 import { initProfileSchema } from "./database/profileSchema.js";
 import { initShopSchema } from "./database/shopSchema.js";
 import { initAdminSchema } from "./database/adminSchema.js";
+import fs from "fs";
+import path from "path";
+import jwt from "jsonwebtoken";
+import db from "./database/db.js";
 import cache from "./database/cache.js";
 
 const app = express();
@@ -61,6 +65,45 @@ initAdminSchema();
 // Drop expired cache rows on boot and every 10 minutes.
 cache.purgeExpired();
 setInterval(() => cache.purgeExpired(), 10 * 60 * 1000);
+
+// ---------------------------------------------------------------
+// Maintenance Mode Guard for fan-facing endpoints
+// ---------------------------------------------------------------
+app.use((req, res, next) => {
+  const urlPath = req.path || "";
+  // Always permit admin APIs, system-status, health check, and login
+  if (
+    urlPath.startsWith("/api/admin") ||
+    urlPath === "/api/health" ||
+    urlPath === "/api/auth/system-status" ||
+    urlPath === "/api/auth/login"
+  ) {
+    return next();
+  }
+
+  db.get("SELECT value FROM admin_settings WHERE key = 'maintenance'", (err, row) => {
+    if (row && row.value === "1") {
+      // Allow authenticated admin users through
+      const authHeader = req.headers.authorization || "";
+      const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : null;
+      if (token) {
+        try {
+          const decoded = jwt.verify(token, process.env.JWT_SECRET);
+          if (decoded && decoded.role === "admin") {
+            return next();
+          }
+        } catch (_) {}
+      }
+
+      return res.status(503).json({
+        success: false,
+        maintenance: true,
+        message: "FANDOM VERSE is currently undergoing maintenance. Please check back later.",
+      });
+    }
+    return next();
+  });
+});
 
 // ----------------------------- Member 1 -----------------------------
 app.use("/api/auth", authRoutes);
@@ -114,6 +157,40 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
+
+// Automatic backup runner (checks every 6 hours if auto_backup setting is enabled)
+function checkAutoBackup() {
+  db.get("SELECT value FROM admin_settings WHERE key = 'auto_backup'", (err, row) => {
+    if (row && row.value === "1") {
+      const BACKUP_DIR = path.resolve("./backups");
+      const DB_FILE = path.resolve("./mydb.sqlite");
+      if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+
+      try {
+        const files = fs.readdirSync(BACKUP_DIR).filter((f) => f.endsWith(".sqlite"));
+        let needsBackup = true;
+        if (files.length > 0) {
+          files.sort();
+          const latestFile = path.join(BACKUP_DIR, files[files.length - 1]);
+          const stat = fs.statSync(latestFile);
+          const ageHours = (Date.now() - stat.mtimeMs) / (1000 * 60 * 60);
+          if (ageHours < 24) needsBackup = false;
+        }
+
+        if (needsBackup && fs.existsSync(DB_FILE)) {
+          const stamp = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "_").slice(0, 19);
+          const target = path.join(BACKUP_DIR, `techwizz_backup_${stamp}.sqlite`);
+          fs.copyFileSync(DB_FILE, target);
+          console.log(`[Auto Backup] Snapshot created: ${path.basename(target)}`);
+        }
+      } catch (e) {
+        console.error("[Auto Backup] Error:", e.message);
+      }
+    }
+  });
+}
+setTimeout(checkAutoBackup, 4000);
+setInterval(checkAutoBackup, 6 * 60 * 60 * 1000);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

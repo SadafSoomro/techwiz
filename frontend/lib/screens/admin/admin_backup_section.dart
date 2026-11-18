@@ -171,7 +171,7 @@ class _AdminBackupSectionState extends State<AdminBackupSection> {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+      padding: AdminTheme.screenPadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -179,7 +179,9 @@ class _AdminBackupSectionState extends State<AdminBackupSection> {
             title: 'Backup & Database',
             subtitle: 'SQLite storage - backup and restore points',
             icon: Icons.storage_rounded,
-            action: Row(
+            action: Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 OutlinedButton.icon(
                   onPressed: () => _downloadUrl(),
@@ -194,7 +196,6 @@ class _AdminBackupSectionState extends State<AdminBackupSection> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
                 AdminPrimaryButton(
                   label: 'Backup Now',
                   icon: Icons.backup_rounded,
@@ -286,46 +287,94 @@ class _AdminBackupSectionState extends State<AdminBackupSection> {
           ),
         ),
       ),
-      child: Row(
-        children: [
-          Icon(
-            hasBackup ? Icons.verified_rounded : Icons.warning_amber_rounded,
-            size: 20,
-            color: hasBackup ? AdminTheme.green : AdminTheme.amber,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 620;
+
+          final iconAndText = Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                hasBackup ? Icons.verified_rounded : Icons.warning_amber_rounded,
+                size: 20,
+                color: hasBackup ? AdminTheme.green : AdminTheme.amber,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      hasBackup ? 'Last Backup' : 'No backup taken yet',
+                      style: TextStyle(
+                        color: AdminTheme.textPrimary,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      hasBackup
+                          ? '${last!['file']}  -  ${_prettySize(_num(last['size']))}  -  '
+                                '${_prettyDate((last['created_at'] ?? '').toString())}'
+                          : 'Create a backup before making large content changes.',
+                      style: TextStyle(
+                        color: AdminTheme.textSecondary,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+
+          final modDate = Text(
+            'Database modified\n${_prettyDate((_database['modified'] ?? '').toString())}',
+            textAlign: isNarrow ? TextAlign.left : TextAlign.right,
+            style: TextStyle(color: AdminTheme.textMuted, fontSize: 10.5),
+          );
+
+          if (isNarrow) {
+            return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  hasBackup ? 'Last Backup' : 'No backup taken yet',
-                  style: TextStyle(
-                    color: AdminTheme.textPrimary,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  hasBackup
-                      ? '${last!['file']}  -  ${_prettySize(_num(last['size']))}  -  '
-                            '${_prettyDate((last['created_at'] ?? '').toString())}'
-                      : 'Create a backup before making large content changes.',
-                  style: TextStyle(
-                    color: AdminTheme.textSecondary,
-                    fontSize: 11.5,
-                  ),
+                iconAndText,
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    modDate,
+                    if (!hasBackup)
+                      AdminPrimaryButton(
+                        label: 'Backup Now',
+                        icon: Icons.backup_rounded,
+                        loading: _creating,
+                        onPressed: _create,
+                      ),
+                  ],
                 ),
               ],
-            ),
-          ),
-          Text(
-            'Database modified\n${_prettyDate((_database['modified'] ?? '').toString())}',
-            textAlign: TextAlign.right,
-            style: TextStyle(color: AdminTheme.textMuted, fontSize: 10.5),
-          ),
-        ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(child: iconAndText),
+              const SizedBox(width: 12),
+              modDate,
+              if (!hasBackup) ...[
+                const SizedBox(width: 12),
+                AdminPrimaryButton(
+                  label: 'Backup Now',
+                  icon: Icons.backup_rounded,
+                  loading: _creating,
+                  onPressed: _create,
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }

@@ -662,7 +662,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Widget _cityDropdown() {
     return DropdownButtonFormField<String>(
-      initialValue: _cities.contains(_cityController.text)
+      value: _cities.contains(_cityController.text)
           ? _cityController.text
           : null,
       dropdownColor: ShopTheme.surfaceLight,

@@ -114,7 +114,7 @@ class _AdminCategoriesSectionState extends State<AdminCategoriesSection> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: AdminTheme.screenPadding(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -227,19 +227,11 @@ class _AdminCategoriesSectionState extends State<AdminCategoriesSection> {
                 ? (category['slug'] ?? '').toString()
                 : (category['description'] ?? '').toString(),
             onTap: () => _openForm(category: category),
-            leading: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.16),
-                borderRadius: BorderRadius.circular(11),
-                border: Border.all(color: color.withValues(alpha: 0.4)),
-              ),
-              child: Icon(
-                _parseIcon((category['icon'] ?? '').toString()),
-                size: 18,
-                color: color,
-              ),
+            leading: AdminImageThumbnail(
+              imageUrl: _categoryImage(category),
+              fallbackIcon: _parseIcon((category['icon'] ?? '').toString()),
+              fallbackColor: color,
+              size: 42,
             ),
             pills: [
               AdminPill(
@@ -306,6 +298,37 @@ class _AdminCategoriesSectionState extends State<AdminCategoriesSection> {
         },
       ),
     );
+  }
+
+  String _categoryImage(Map<String, dynamic> category) {
+    final name = (category['name'] ?? '').toString().toLowerCase();
+    if (_kind == 'fandom') {
+      if (name.contains('anime')) return 'assets/images/fandoms/anime.jpg';
+      if (name.contains('game') || name.contains('gaming')) return 'assets/images/fandoms/gaming.jpg';
+      if (name.contains('movie') || name.contains('tv')) return 'assets/images/fandoms/movies_tv.jpg';
+      if (name.contains('comic')) return 'assets/images/fandoms/comics.jpg';
+      if (name.contains('music')) return 'assets/images/fandoms/music.jpg';
+      if (name.contains('sport')) return 'assets/images/fandoms/sports.jpg';
+      if (name.contains('sci') || name.contains('fiction')) return 'assets/images/fandoms/scifi.jpg';
+      return 'assets/images/fandoms/default.jpg';
+    } else if (_kind == 'event') {
+      if (name.contains('convention')) return 'assets/images/events/fan_convention.jpg';
+      if (name.contains('cosplay')) return 'assets/images/events/cosplay_meetup.jpg';
+      if (name.contains('screening')) return 'assets/images/events/screening.jpg';
+      if (name.contains('tournament') || name.contains('gaming')) return 'assets/images/events/gaming_tournament.jpg';
+      if (name.contains('comic')) return 'assets/images/events/comic_con.jpg';
+      if (name.contains('concert')) return 'assets/images/events/concert.jpg';
+      if (name.contains('meetup')) return 'assets/images/events/fan_meetup.jpg';
+      if (name.contains('workshop')) return 'assets/images/events/workshop.jpg';
+      return 'assets/images/events/default.jpg';
+    } else {
+      if (name.contains('figure')) return 'assets/images/products/figure_luna.jpg';
+      if (name.contains('shirt') || name.contains('apparel')) return 'assets/images/products/straw_hat_crew_tee.jpg';
+      if (name.contains('collect')) return 'assets/images/products/one_piece_collector_box.jpg';
+      if (name.contains('accessor')) return 'assets/images/products/straw_hat_keychain.jpg';
+      if (name.contains('digital')) return 'assets/images/products/anime_4k_wallpaper_pack.jpg';
+      return '';
+    }
   }
 
   static int _id(Map<String, dynamic> row) => (row['id'] as num?)?.toInt() ?? 0;
@@ -408,10 +431,18 @@ class _CategoryFormDialogState extends State<_CategoryFormDialog> {
     _hashtag = TextEditingController(text: (c['hashtag'] ?? '').toString());
     _icon = (c['icon'] ?? 'category').toString();
     _colorHex = (c['color'] ?? '#7C3AED').toString();
+    _name.addListener(_onTextChanged);
+    _description.addListener(_onTextChanged);
+  }
+
+  void _onTextChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _name.removeListener(_onTextChanged);
+    _description.removeListener(_onTextChanged);
     _name.dispose();
     _description.dispose();
     _hashtag.dispose();
@@ -474,7 +505,63 @@ class _CategoryFormDialogState extends State<_CategoryFormDialog> {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: AdminTheme.surfaceAlt,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AdminTheme.border),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 42,
+                        height: 42,
+                        decoration: BoxDecoration(
+                          color: _parseColor(_colorHex).withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: _parseColor(_colorHex).withValues(alpha: 0.4),
+                          ),
+                        ),
+                        child: Icon(
+                          _parseIcon(_icon),
+                          color: _parseColor(_colorHex),
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _name.text.isEmpty ? 'Category Preview' : _name.text,
+                              style: TextStyle(
+                                color: AdminTheme.textPrimary,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                              ),
+                            ),
+                            Text(
+                              _description.text.isEmpty
+                                  ? 'Live icon and color preview'
+                                  : _description.text,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: AdminTheme.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: _name,
                   style: TextStyle(color: AdminTheme.textPrimary),

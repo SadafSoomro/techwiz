@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../models/event_models.dart';
 import '../providers/event_provider.dart';
+import '../services/location_service.dart';
 import '../theme/app_theme.dart';
 import '../theme/event_theme.dart';
 import '../widgets/event_map_view.dart';
@@ -26,16 +27,46 @@ class EventMapScreen extends StatefulWidget {
 
 class _EventMapScreenState extends State<EventMapScreen> {
   int? _selectedPinId;
+  int _locateTrigger = 0;
 
   @override
   void initState() {
     super.initState();
     _selectedPinId = widget.focusEventId;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = context.read<EventProvider>();
-      provider.loadMapPins();
-      provider.loadNearby(radiusKm: 2000);
+      final savedLoc = await LocationService.getSavedLocation();
+
+      if (savedLoc != null) {
+        provider.useDeviceLocation(
+          lat: savedLoc.latitude,
+          lng: savedLoc.longitude,
+          city: savedLoc.city,
+          area: savedLoc.area,
+        );
+        provider.loadMapPins(city: savedLoc.city);
+        provider.loadNearby(radiusKm: 200);
+      } else {
+        try {
+          final live = await LocationService.detectCurrentLocation();
+          await LocationService.saveLocation(live);
+          if (mounted) {
+            provider.useDeviceLocation(
+              lat: live.latitude,
+              lng: live.longitude,
+              city: live.city,
+              area: live.area,
+            );
+            provider.loadMapPins(city: live.city);
+            provider.loadNearby(radiusKm: 200);
+            setState(() => _locateTrigger++);
+          }
+        } catch (_) {
+          provider.loadMapPins();
+          provider.loadNearby(radiusKm: 2000);
+        }
+      }
       if (provider.categories.isEmpty) provider.loadFilters();
     });
   }
@@ -52,23 +83,29 @@ class _EventMapScreenState extends State<EventMapScreen> {
   }
 
   /// "My location": re-acquires the device fix, recentres the map and
-  /// refreshes the pins/nearby list so the button always has a visible effect.
+  /// zooms directly into that exact location.
   Future<void> _locateMe() async {
     final provider = context.read<EventProvider>();
 
-    final city = await provider.recenterOnDeviceLocation();
+    final displayLoc = await provider.recenterOnDeviceLocation();
     if (!mounted) return;
 
-    setState(() => _selectedPinId = null);
+    setState(() {
+      _selectedPinId = null;
+      _locateTrigger++;
+    });
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text('Showing events near $city'),
-          duration: const Duration(seconds: 2),
+          content: Text(
+            '📍 Location traced: $displayLoc • ${provider.mapPins.length} nearby events (Cosplay, Meetups, Screenings) loaded!',
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+          duration: const Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: EventTheme.surface,
+          backgroundColor: EventTheme.teal,
         ),
       );
   }
@@ -102,11 +139,12 @@ class _EventMapScreenState extends State<EventMapScreen> {
                     selectedPinId: _selectedPinId,
                     currentLatitude: provider.latitude,
                     currentLongitude: provider.longitude,
-                    currentLabel: provider.currentCity,
+                    currentLabel: provider.currentArea.isNotEmpty ? provider.currentArea : provider.currentCity,
+                    locateTrigger: _locateTrigger,
                     // Keep the compass / "you are here" chip clear of the
                     // filter bar and the scale bar clear of the bottom card.
                     overlayPadding: EdgeInsets.only(
-                      top: 96,
+                      top: provider.currentArea.isNotEmpty ? 116 : 88,
                       bottom: selectedEvent != null ? 158 : 138,
                     ),
                     onPinTap: (pin) => setState(() => _selectedPinId = pin.id),
@@ -121,10 +159,12 @@ class _EventMapScreenState extends State<EventMapScreen> {
             child: _MapFilterBar(
               provider: provider,
               onChanged: (city, category) {
-                context.read<EventProvider>().loadMapPins(
-                      city: city,
-                      category: category,
-                    );
+                final p = context.read<EventProvider>();
+                p.loadMapPins(
+                  city: city,
+                  category: category,
+                );
+                p.loadNearby(radiusKm: city == 'All' ? 2000 : 80);
                 setState(() => _selectedPinId = null);
               },
             ),
@@ -181,7 +221,7 @@ class _MapFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
@@ -195,6 +235,43 @@ class _MapFilterBar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (provider.currentArea.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8, left: 2),
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: EventTheme.teal.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: EventTheme.teal.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.near_me_rounded, size: 12, color: EventTheme.teal),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'Your Area: ${provider.displayLocation}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: EventTheme.teal,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(

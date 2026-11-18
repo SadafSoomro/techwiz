@@ -45,11 +45,21 @@ router.post("/events", admin.createEvent);
 router.put("/events/:id", admin.updateEvent);
 router.delete("/events/:id", admin.deleteEvent);
 
+// event tickets
+router.get("/tickets", admin.listEventTickets);
+router.patch("/tickets/:id/status", admin.setTicketStatus);
+
 // products
 router.get("/products", admin.listProducts);
 router.post("/products", admin.createProduct);
 router.put("/products/:id", admin.updateProduct);
 router.delete("/products/:id", admin.deleteProduct);
+
+// orders (user orders management)
+router.get("/orders", admin.listOrders);
+router.get("/orders/:id", admin.getOrderDetail);
+router.patch("/orders/:id/status", admin.setOrderStatus);
+router.delete("/orders/:id", admin.deleteOrder);
 
 // categories (product | fandom | event)
 router.get("/categories", admin.listCategories);

@@ -6,8 +6,6 @@ import '../theme/app_theme.dart';
 import '../widgets/animated_widgets.dart';
 import '../widgets/app_alert.dart';
 import '../widgets/fandom_logo.dart';
-import '../widgets/social_buttons.dart';
-import 'fandom_selection_screen.dart';
 import 'verify_email_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -48,7 +46,7 @@ class _SignupScreenState extends State<SignupScreen> {
     if (response.success) {
       await showSuccessAlert(
         context,
-        response.message,
+        'Account created successfully!\n\nA 6-digit verification code has been sent to your email address:\n${_emailController.text.trim()}\n\nPlease check your inbox (and spam folder) to verify your account.',
         title: 'Account Created',
       );
       if (!mounted) return;
@@ -63,121 +61,6 @@ class _SignupScreenState extends State<SignupScreen> {
     } else {
       await showErrorAlert(context, response.message, title: 'Sign Up Failed');
     }
-  }
-
-  Future<void> _handleGoogleSignUp() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final response = await authProvider.loginWithGoogle();
-
-    if (!mounted) return;
-
-    if (response.success && authProvider.isAuthenticated) {
-      await showSuccessAlert(
-        context,
-        response.message,
-        title: 'Account Created',
-      );
-      if (!mounted) return;
-
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const FandomSelectionScreen()),
-      );
-    } else {
-      if (response.message.contains('cancelled')) return;
-
-      if (response.message.toLowerCase().contains('authorization') ||
-          response.message.toLowerCase().contains('error') ||
-          response.message.toLowerCase().contains('console')) {
-        _showGoogleEmailFallbackDialog();
-      } else {
-        await showErrorAlert(
-          context,
-          response.message,
-          title: 'Google Sign Up Failed',
-        );
-      }
-    }
-  }
-
-  void _showGoogleEmailFallbackDialog() {
-    final googleEmailController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppTheme.cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const GoogleLogoWidget(size: 26),
-            const SizedBox(width: 10),
-            const Text('Google Account Sign Up', style: TextStyle(color: Colors.white, fontSize: 18)),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Enter your Google account email address to create your account:',
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: googleEmailController,
-              keyboardType: TextInputType.emailAddress,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(
-                labelText: 'Google Email',
-                hintText: 'yourname@gmail.com',
-                prefixIcon: Icon(Icons.email_outlined),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final email = googleEmailController.text.trim();
-              if (email.isEmpty || !email.contains('@')) return;
-
-              Navigator.of(dialogContext).pop();
-
-              final authProvider =
-                  Provider.of<AuthProvider>(context, listen: false);
-              final res = await authProvider.loginWithGoogleEmail(email: email);
-
-              if (!mounted) return;
-
-              if (res.success && authProvider.isAuthenticated) {
-                await showSuccessAlert(
-                  context,
-                  res.message,
-                  title: 'Account Created',
-                );
-                if (!mounted) return;
-
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(builder: (_) => const FandomSelectionScreen()),
-                );
-              } else {
-                if (!mounted) return;
-                await showErrorAlert(
-                  context,
-                  res.message,
-                  title: 'Google Sign Up Failed',
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
-            child: const Text('Continue', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
   }
 
   @override
@@ -195,12 +78,27 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
         child: SafeArea(
           child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              child: Column(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 450),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (Navigator.of(context).canPop()) ...[
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                        tooltip: 'Back to Login',
+                        onPressed: () => Navigator.of(context).maybePop(),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+
                   // Official FANDOM VERSE Logo (animated in)
                   FadeSlideIn(
                     child: const Center(
@@ -359,36 +257,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
-
-                  // Divider OR
-                  Row(
-                    children: [
-                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.12))),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'or',
-                          style: GoogleFonts.inter(
-                            color: AppTheme.textMuted,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.12))),
-                    ],
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // Continue with Google Button (No Apple button)
-                  SocialSignInButton(
-                    text: 'Continue with Google',
-                    icon: const GoogleLogoWidget(size: 22),
-                    onPressed: authProvider.isLoading ? null : _handleGoogleSignUp,
-                  ),
-
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
 
                   // Already have account? Login
                   Row(
@@ -412,6 +281,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ],
                   ),
                 ],
+              ),
               ),
             ),
           ),

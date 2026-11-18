@@ -44,15 +44,13 @@ const venues = [
   ["Javits Center NYC", "429 11th Ave", "New York", 40.758, -74.002, 30000],
 ];
 
-// ---------------------------------------------------------------------------
-// Cloudinary Anime Image URLs
-// ---------------------------------------------------------------------------
+// Local Bundled Anime Image URLs
 const ANIME_IMG = {
-  one_piece: "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1000&auto=format&fit=crop",
-  jjk: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=1000&auto=format&fit=crop",
-  demon_slayer: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1000&auto=format&fit=crop",
-  attack_on_titan: "https://images.unsplash.com/photo-1563089145-599997674d42?w=1000&auto=format&fit=crop",
-  anime_expo: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=1000&auto=format&fit=crop",
+  one_piece: "assets/images/content/luffy_lore.jpg",
+  jjk: "assets/images/content/gojo_jjk.jpg",
+  demon_slayer: "assets/images/content/demon_slayer.jpg",
+  attack_on_titan: "assets/images/events/fan_convention.jpg",
+  anime_expo: "assets/images/events/anime_expo_2025.jpg",
 };
 
 const events = [

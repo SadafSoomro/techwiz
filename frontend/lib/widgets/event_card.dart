@@ -76,15 +76,17 @@ class EventCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // ---------------------- badges ----------------------
-                          Row(
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
                             children: [
                               _CategoryPill(
                                 label: event.category,
                                 color: categoryColor,
                                 icon: EventTheme.categoryIcon(event.category),
                               ),
-                              if (event.isFeatured) ...[
-                                const SizedBox(width: 6),
+                              if (event.isFeatured)
                                 Container(
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
@@ -107,7 +109,6 @@ class EventCard extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                              ],
                             ],
                           ),
                           const SizedBox(height: 8),
@@ -310,13 +311,17 @@ class _CategoryPill extends StatelessWidget {
         children: [
           Icon(icon, size: 11, color: color),
           const SizedBox(width: 5),
-          Text(
-            label.toUpperCase(),
-            style: GoogleFonts.inter(
-              color: color,
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.4,
+          Flexible(
+            child: Text(
+              label.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.inter(
+                color: color,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.4,
+              ),
             ),
           ),
         ],

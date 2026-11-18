@@ -11,7 +11,7 @@ import '../widgets/animated_widgets.dart';
 import '../widgets/app_alert.dart';
 import '../widgets/app_image.dart';
 import '../widgets/content_widgets.dart';
-import 'fandom_hub_screen.dart';
+import 'fandom_hub_screen.dart' show openContentItem;
 
 /// MEMBER 2 - News Details (also used for articles and Deep Dive stories).
 class NewsDetailsScreen extends StatefulWidget {
@@ -27,8 +27,6 @@ class _NewsDetailsScreenState extends State<NewsDetailsScreen> {
   late ContentItem _item;
   ContentDetails? _details;
   bool _loading = true;
-  bool _liking = false;
-  bool _saving = false;
   String? _error;
 
   @override
@@ -63,7 +61,6 @@ class _NewsDetailsScreenState extends State<NewsDetailsScreen> {
   }
 
   Future<void> _toggleLike() async {
-    setState(() => _liking = true);
     final provider = context.read<ContentProvider>();
     final liked = await provider.toggleLike(_item);
     if (!mounted) return;
@@ -72,18 +69,15 @@ class _NewsDetailsScreenState extends State<NewsDetailsScreen> {
         isLiked: liked,
         likesCount: liked ? _item.likesCount + 1 : _item.likesCount - 1,
       );
-      _liking = false;
     });
   }
 
   Future<void> _toggleOffline() async {
-    setState(() => _saving = true);
     final provider = context.read<ContentProvider>();
     final offline = await provider.toggleOffline(_item);
     if (!mounted) return;
     setState(() {
       _item = _item.copyWith(isOffline: offline);
-      _saving = false;
     });
 
     if (offline) {
@@ -124,7 +118,6 @@ class _NewsDetailsScreenState extends State<NewsDetailsScreen> {
 
     return Scaffold(
       backgroundColor: ContentTheme.background,
-      bottomNavigationBar: _buildBottomBar(),
       body: Container(
         decoration: const BoxDecoration(gradient: ContentTheme.backgroundGradient),
         child: CustomScrollView(
@@ -139,6 +132,23 @@ class _NewsDetailsScreenState extends State<NewsDetailsScreen> {
               ),
               actions: [
                 IconButton(
+                  tooltip: _item.isLiked ? 'Unlike' : 'Like',
+                  icon: Icon(
+                    _item.isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                    color: _item.isLiked ? ContentTheme.rose : Colors.white,
+                  ),
+                  onPressed: _toggleLike,
+                ),
+                IconButton(
+                  tooltip: _item.isOffline ? 'Saved Offline' : 'Save Offline',
+                  icon: Icon(
+                    _item.isOffline ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                    color: _item.isOffline ? ContentTheme.primary : Colors.white,
+                  ),
+                  onPressed: _toggleOffline,
+                ),
+                IconButton(
+                  tooltip: 'Share',
                   icon: const Icon(Icons.share_rounded, color: Colors.white),
                   onPressed: _share,
                 ),
@@ -412,133 +422,4 @@ class _NewsDetailsScreenState extends State<NewsDetailsScreen> {
     );
   }
 
-  Widget _buildBottomBar() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-      decoration: BoxDecoration(
-        color: ContentTheme.card,
-        border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.07))),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            _BottomAction(
-              icon: _item.isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-              label: ContentTheme.compactCount(_item.likesCount),
-              active: _item.isLiked,
-              busy: _liking,
-              color: ContentTheme.rose,
-              onTap: _toggleLike,
-            ),
-            const SizedBox(width: 10),
-            _BottomAction(
-              icon: _item.isOffline
-                  ? Icons.bookmark_rounded
-                  : Icons.bookmark_border_rounded,
-              label: _item.isOffline ? 'Offline' : 'Save',
-              active: _item.isOffline,
-              busy: _saving,
-              color: ContentTheme.primary,
-              onTap: _toggleOffline,
-            ),
-            const SizedBox(width: 10),
-            _BottomAction(
-              icon: Icons.share_rounded,
-              label: 'Share',
-              active: false,
-              color: ContentTheme.secondary,
-              onTap: _share,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: PressScale(
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => FandomHubScreen(
-                      embedded: false,
-                    ),
-                  ),
-                ),
-                child: Container(
-                  height: 46,
-                  decoration: BoxDecoration(
-                    gradient: ContentTheme.headerGradient,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Fandom Hub',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BottomAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool active;
-  final bool busy;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _BottomAction({
-    required this.icon,
-    required this.label,
-    required this.active,
-    required this.color,
-    required this.onTap,
-    this.busy = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return PressScale(
-      onTap: busy ? null : onTap,
-      pressedScale: 0.92,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 240),
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-        decoration: BoxDecoration(
-          color: active ? color.withValues(alpha: 0.18) : Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(
-            color: active ? color.withValues(alpha: 0.55) : Colors.transparent,
-          ),
-        ),
-        child: busy
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Column(
-                children: [
-                  Icon(icon, size: 19, color: active ? color : ContentTheme.textSecondary),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: active ? color : ContentTheme.textSecondary,
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-      ),
-    );
-  }
 }

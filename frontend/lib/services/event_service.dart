@@ -153,11 +153,15 @@ class EventService {
   static Future<EventResult<List<MapPin>>> mapPins({
     String city = '',
     String category = '',
+    double? latitude,
+    double? longitude,
   }) async {
     try {
       final json = await _send('GET', ApiConfig.eventsMapUrl, query: {
         'city': city,
         'category': category,
+        'lat': latitude,
+        'lng': longitude,
       });
 
       if (json?['success'] == true) {
@@ -365,6 +369,23 @@ class EventService {
         );
       }
       return EventResult.failure(json?['message'] ?? 'Could not cancel the ticket');
+    } catch (e) {
+      return EventResult.failure('Network error ($e)');
+    }
+  }
+
+  static Future<EventResult<EventTicket>> confirmTicket(int ticketId) async {
+    try {
+      final json = await _send('POST', '${ApiConfig.eventsUrl}/tickets/$ticketId/confirm');
+      final ticketMap = parseMap(json?['ticket']);
+      if (json?['success'] == true && ticketMap != null) {
+        return EventResult(
+          success: true,
+          message: json!['message'] ?? 'Ticket confirmed!',
+          data: EventTicket.fromJson(ticketMap),
+        );
+      }
+      return EventResult.failure(json?['message'] ?? 'Could not confirm ticket');
     } catch (e) {
       return EventResult.failure('Network error ($e)');
     }

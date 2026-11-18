@@ -11,25 +11,53 @@ class AdminStorage {
   static const String _keyToken = 'admin_jwt_token';
   static const String _keyAdmin = 'admin_user';
 
+  static SharedPreferences? _prefs;
+  static String? _token;
+  static String? _adminJson;
+  static bool _loaded = false;
+
+  /// Loads the admin session once into memory.
+  static Future<void> preload() async {
+    try {
+      _prefs ??= await SharedPreferences.getInstance();
+      _token = _prefs!.getString(_keyToken);
+      _adminJson = _prefs!.getString(_keyAdmin);
+    } catch (_) {}
+    _loaded = true;
+  }
+
+  static Future<SharedPreferences> _instance() async {
+    return _prefs ??= await SharedPreferences.getInstance();
+  }
+
   static Future<void> saveSession(
     String token,
     Map<String, dynamic>? admin,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_keyToken, token);
-    if (admin != null) {
-      await prefs.setString(_keyAdmin, jsonEncode(admin));
-    }
+    _token = token;
+    _adminJson = admin == null ? null : jsonEncode(admin);
+    _loaded = true;
+
+    try {
+      final prefs = await _instance();
+      await prefs.setString(_keyToken, token);
+      if (admin != null) {
+        await prefs.setString(_keyAdmin, _adminJson!);
+      }
+    } catch (_) {}
   }
 
   static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_keyToken);
+    if (!_loaded) await preload();
+    return _token;
   }
 
+  /// Synchronous token access for hot paths such as request headers.
+  static String? get tokenOrNull => _loaded ? _token : null;
+
   static Future<Map<String, dynamic>?> getAdmin() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_keyAdmin);
+    if (!_loaded) await preload();
+    final raw = _adminJson;
     if (raw != null && raw.isNotEmpty) {
       try {
         return jsonDecode(raw) as Map<String, dynamic>;
@@ -44,8 +72,14 @@ class AdminStorage {
   }
 
   static Future<void> clearSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyToken);
-    await prefs.remove(_keyAdmin);
+    _token = null;
+    _adminJson = null;
+    _loaded = true;
+
+    try {
+      final prefs = await _instance();
+      await prefs.remove(_keyToken);
+      await prefs.remove(_keyAdmin);
+    } catch (_) {}
   }
 }

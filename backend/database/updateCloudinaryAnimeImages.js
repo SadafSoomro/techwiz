@@ -34,6 +34,14 @@ async function updateAll() {
   await runAsync(`UPDATE content_items SET image_url = 'assets/images/content/luffy_lore.jpg' WHERE title LIKE '%One Piece%' OR title LIKE '%Wano%'`);
   await runAsync(`UPDATE content_items SET image_url = 'assets/images/content/gojo_jjk.jpg' WHERE title LIKE '%Jujutsu%' OR title LIKE '%Gojo%'`);
   await runAsync(`UPDATE content_items SET image_url = 'assets/images/content/demon_slayer.jpg' WHERE title LIKE '%Demon%' OR title LIKE '%Slayer%'`);
+  await runAsync(`UPDATE content_items SET image_url = 'assets/images/events/comic_con.jpg' WHERE id = 9`);
+  await runAsync(`UPDATE content_items SET image_url = 'assets/images/content/gallery_06.jpg' WHERE id = 12`);
+  await runAsync(`UPDATE content_items SET image_url = 'assets/images/content/gallery_02.jpg' WHERE id = 16`);
+  await runAsync(`UPDATE content_items SET image_url = 'assets/images/content/gallery_03.jpg' WHERE id = 17`);
+  await runAsync(`UPDATE content_items SET image_url = 'assets/images/content/gallery_04.jpg' WHERE id = 18`);
+  await runAsync(`UPDATE content_items SET image_url = 'assets/images/content/gallery_05.jpg' WHERE id = 19`);
+  await runAsync(`UPDATE content_items SET image_url = 'assets/images/content/gallery_06.jpg' WHERE id = 20`);
+  await runAsync(`UPDATE content_items SET image_url = 'assets/images/content/rpg_speedrun.jpg' WHERE id = 2 OR title LIKE '%speedrun%'`);
 
   console.log("✅ Avatars and Content images updated successfully!");
   db.close();

@@ -74,52 +74,105 @@
       left: 0;
       right: 0;
       bottom: 8%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       text-align: center;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     }
 
-    #fv-boot-splash .fv-bar {
-      width: 150px;
-      height: 4px;
-      margin: 0 auto;
+    #fv-boot-splash .fv-bar-wrap {
+      width: 240px;
+      padding: 3px;
+      background: rgba(15, 23, 42, 0.75);
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.18);
-      overflow: hidden;
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      box-shadow: 0 0 16px rgba(168, 85, 247, 0.25);
     }
 
-    #fv-boot-splash .fv-bar span {
-      display: block;
-      width: 42%;
+    #fv-boot-splash .fv-bar {
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      position: relative;
+    }
+
+    #fv-boot-splash .fv-bar-fill {
+      width: 0%;
       height: 100%;
       border-radius: 999px;
       background: linear-gradient(90deg, #7c3aed, #a855f7, #ec4899);
-      animation: fv-slide 1.15s ease-in-out infinite;
+      transition: width 0.15s ease-out;
+      box-shadow: 0 0 8px #a855f7;
+    }
+
+    #fv-boot-splash .fv-text-row {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
     }
 
     #fv-boot-splash .fv-text {
-      margin: 12px 0 0;
-      color: #94a3b8;
-      font-size: 12.5px;
+      margin: 0;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 13px;
       font-weight: 500;
-      letter-spacing: 0.4px;
+      letter-spacing: 0.5px;
     }
 
-    @keyframes fv-slide {
-      0%   { transform: translateX(-105%); }
-      100% { transform: translateX(340%); }
+    #fv-boot-splash .fv-pct {
+      color: #c084fc;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
     }
   </style>
 </head>
 <body>
-  <!-- Branded boot splash - artwork + loading bar, removed by
-       web/flutter_bootstrap.js after the first Flutter frame. -->
+  <!-- Branded boot splash - artwork + loading bar with live percentage -->
   <div id="fv-boot-splash">
     <img class="fv-art" src="assets/assets/images/splash_bg.jpg" alt="FANDOM VERSE" />
     <div class="fv-loading">
-      <div class="fv-bar"><span></span></div>
-      <p class="fv-text">Loading your fandom universe...</p>
+      <div class="fv-bar-wrap">
+        <div class="fv-bar">
+          <div class="fv-bar-fill" id="fv-fill"></div>
+        </div>
+      </div>
+      <div class="fv-text-row">
+        <p class="fv-text">Loading your fandom universe...</p>
+        <span class="fv-pct" id="fv-pct">0%</span>
+      </div>
     </div>
   </div>
+
+  <script>
+    (function() {
+      var cur = 0;
+      var fill = document.getElementById('fv-fill');
+      var pct = document.getElementById('fv-pct');
+      window.__fvSetProgress = function(val) {
+        cur = Math.max(cur, val);
+        if (fill) fill.style.width = cur + '%';
+        if (pct) pct.textContent = cur + '%';
+      };
+      var timer = setInterval(function() {
+        if (cur < 90) {
+          cur += 1;
+          if (fill) fill.style.width = cur + '%';
+          if (pct) pct.textContent = cur + '%';
+        }
+      }, 25);
+      window.__fvCompleteProgress = function() {
+        clearInterval(timer);
+        window.__fvSetProgress(100);
+      };
+    })();
+  </script>
 
   <!--
     The bootstrap script is customised in web/flutter_bootstrap.js so the

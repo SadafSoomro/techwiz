@@ -15,6 +15,7 @@ import 'invite_friends_screen.dart';
 import 'login_screen.dart';
 import 'my_fandoms_screen.dart';
 import 'notifications_screen.dart';
+import 'orders_screen.dart';
 import 'profile_badges_screen.dart';
 import 'settings_screen.dart';
 import 'social_tasks_screen.dart';
@@ -196,13 +197,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                         const SizedBox(height: 9),
-                        Row(
+                        Wrap(
+                          spacing: 7,
+                          runSpacing: 4,
                           children: [
                             _headerChip(
                               Icons.workspace_premium_rounded,
                               'Level ${user?.level ?? 1}',
                             ),
-                            const SizedBox(width: 7),
                             _headerChip(
                               Icons.local_fire_department_rounded,
                               '${user?.points ?? 0} pts',
@@ -277,8 +279,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.edit_rounded,
                 height: 46,
                 gradient: const LinearGradient(
-                  colors: [Colors.white, Color(0xFFE0E7FF)],
+                  colors: [Colors.white, Color(0xFFF1F5F9)],
                 ),
+                textColor: const Color(0xFF4338CA),
+                iconColor: const Color(0xFF4338CA),
+                customShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.25),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
                 onPressed: () async {
                   await _push(const EditProfileScreen());
                   if (mounted) provider.loadProfile();
@@ -516,6 +527,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         icon: Icons.notifications_none_rounded,
         color: ProfileTheme.rose,
         onTap: () => _push(const NotificationsScreen()),
+      ),
+      SettingsActionTile(
+        title: 'My Orders & Tracking',
+        value: 'Purchases & live tracking',
+        icon: Icons.local_shipping_outlined,
+        color: ProfileTheme.amber,
+        onTap: () => _push(const OrdersScreen()),
       ),
       SettingsActionTile(
         title: 'Settings',

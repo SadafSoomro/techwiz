@@ -201,6 +201,196 @@ export const getEvents = asyncHandler(async (req, res) => {
 });
 
 // ===========================================================================
+// Dynamic Nearby Events Generator around User Location
+// ===========================================================================
+
+/**
+ * Automatically seeds nearby fan events around a user's located position (lat, lng)
+ * if there are fewer than 5 events within 15km of those coordinates.
+ */
+async function ensureNearbyEvents(lat, lng, cityName = "", areaName = "") {
+  if (Number.isNaN(lat) || Number.isNaN(lng) || lat === 0 || lng === 0) return;
+
+  try {
+    const existing = await all(
+      `SELECT id, latitude, longitude FROM events WHERE latitude IS NOT NULL AND longitude IS NOT NULL`
+    );
+
+    const closeCount = existing.filter((e) => {
+      if (e.latitude == null || e.longitude == null) return false;
+      return haversineKm(lat, lng, e.latitude, e.longitude) <= 15;
+    }).length;
+
+    if (closeCount >= 5) {
+      return; // Enough nearby events already exist
+    }
+
+    const city = cityName || "Nearby";
+    const area = areaName || "Local Zone";
+    const locationTag = areaName ? `${areaName}, ${city}` : city;
+
+    const templates = [
+      {
+        title: `Cosplay & Anime Fan Meetup @ ${locationTag}`,
+        description: `Gathering for local anime fans and cosplayers in ${locationTag}! Photoshoot, costume showcase, and fan networking.`,
+        category: "Cosplay Meetup",
+        venue: `${area} Fan Square`,
+        latOffset: 0.0035,
+        lngOffset: 0.0040,
+        days: 2,
+        start: "16:00",
+        end: "20:00",
+        price: 0,
+        organizer: `${city} Cosplay Guild`,
+        capacity: 400,
+        attendees: 185,
+        featured: 1,
+        image_url: "assets/images/events/anime_expo_2025.jpg",
+      },
+      {
+        title: `Otaku Hangout & Anime Trivia Night`,
+        description: `Anime trivia, manga discussions, and fan art trading at ${area}. Bring your friends!`,
+        category: "Fan Meetup",
+        venue: `${area} Community Center`,
+        latOffset: -0.0045,
+        lngOffset: 0.0030,
+        days: 4,
+        start: "18:00",
+        end: "21:30",
+        price: 0,
+        organizer: "FandomVerse Local Club",
+        capacity: 250,
+        attendees: 120,
+        featured: 0,
+        image_url: "assets/images/content/luffy_lore.jpg",
+      },
+      {
+        title: `Demon Slayer & JJK Fan Screening`,
+        description: `Big-screen anime movie screening with fan commentary, giveaways, and pop-up merch stall.`,
+        category: "Screening",
+        venue: `${locationTag} Cinema Arena`,
+        latOffset: 0.0060,
+        lngOffset: -0.0050,
+        days: 6,
+        start: "19:00",
+        end: "22:00",
+        price: 800,
+        organizer: "Anime Screenings Co.",
+        capacity: 500,
+        attendees: 310,
+        featured: 1,
+        image_url: "assets/images/content/demon_slayer.jpg",
+      },
+      {
+        title: `VALORANT & TEKKEN 8 Local Clash`,
+        description: `Open esports tournament for competitive gamers. Custom trophies and gaming peripherals prize pool!`,
+        category: "Gaming Tournament",
+        venue: `${area} Gaming Hub`,
+        latOffset: -0.0055,
+        lngOffset: -0.0065,
+        days: 8,
+        start: "14:00",
+        end: "21:00",
+        price: 500,
+        organizer: "Esports Alliance",
+        capacity: 350,
+        attendees: 240,
+        featured: 1,
+        image_url: "assets/images/content/gojo_jjk.jpg",
+      },
+      {
+        title: `${city} Mini Fan Convention & Artist Alley`,
+        description: `Full-day fandom convention featuring artist stalls, voice actor Q&A, and cosplay contest!`,
+        category: "Fan Convention",
+        venue: `${city} Central Convention Hall`,
+        latOffset: 0.0110,
+        lngOffset: 0.0090,
+        days: 12,
+        start: "11:00",
+        end: "20:00",
+        price: 1200,
+        organizer: "FandomVerse Events",
+        capacity: 2000,
+        attendees: 1150,
+        featured: 1,
+        image_url: "assets/images/events/fan_convention.jpg",
+      },
+      {
+        title: `One Piece & Shonen Manga Discussion League`,
+        description: `Shonen manga theory breakdown, chapter review, and manga trading session.`,
+        category: "Fan Meetup",
+        venue: `${area} Open Park`,
+        latOffset: -0.0085,
+        lngOffset: 0.0110,
+        days: 14,
+        start: "17:00",
+        end: "19:30",
+        price: 0,
+        organizer: "Grand Line Fan Club",
+        capacity: 200,
+        attendees: 95,
+        featured: 0,
+        image_url: "assets/images/content/luffy_lore.jpg",
+      },
+      {
+        title: `Cosplay Crafting & Prop Building Workshop`,
+        description: `Hands-on workshop teaching EVA foam sculpting, painting, and wig styling techniques for cosplayers.`,
+        category: "Workshop",
+        venue: `${area} Creative Studio`,
+        latOffset: -0.0120,
+        lngOffset: -0.0130,
+        days: 16,
+        start: "13:00",
+        end: "17:00",
+        price: 1000,
+        organizer: "Cosplay Crafters Guild",
+        capacity: 150,
+        attendees: 80,
+        featured: 0,
+        image_url: "assets/images/events/anime_expo_2025.jpg",
+      },
+    ];
+
+    for (const t of templates) {
+      const eLat = +(lat + t.latOffset).toFixed(6);
+      const eLng = +(lng + t.lngOffset).toFixed(6);
+      const eDate = dayOffset(t.days);
+
+      await run(
+        `INSERT INTO events (
+          title, description, category, city_name, venue_name, address,
+          latitude, longitude, event_date, start_time, end_time,
+          ticket_price, currency, organizer, capacity, attendees_count,
+          is_featured, image_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          t.title,
+          t.description,
+          t.category,
+          city,
+          t.venue,
+          `${t.venue}, ${locationTag}`,
+          eLat,
+          eLng,
+          eDate,
+          t.start,
+          t.end,
+          t.price,
+          "PKR",
+          t.organizer,
+          t.capacity,
+          t.attendees,
+          t.featured,
+          t.image_url,
+        ]
+      );
+    }
+  } catch (err) {
+    console.error("Error auto-seeding nearby events:", err);
+  }
+}
+
+// ===========================================================================
 // GET /api/events/nearby?lat=&lng=&radius=
 // GPS style discovery - the SRS "Map and GPS Integration" requirement.
 // ===========================================================================
@@ -215,6 +405,8 @@ export const getNearbyEvents = asyncHandler(async (req, res) => {
       message: "lat and lng query parameters are required",
     });
   }
+
+  await ensureNearbyEvents(lat, lng, req.query.city, req.query.area);
 
   const { sql, params } = buildWhere(req.query);
   const rows = await all(`${EVENT_SELECT} ${sql} ORDER BY e.event_date ASC`, params);
@@ -246,6 +438,12 @@ export const getNearbyEvents = asyncHandler(async (req, res) => {
 // GET /api/events/map  -> light payload for map pins
 // ===========================================================================
 export const getMapPins = asyncHandler(async (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lng = parseFloat(req.query.lng);
+  if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+    await ensureNearbyEvents(lat, lng, req.query.city, req.query.area);
+  }
+
   const { sql, params } = buildWhere(req.query);
 
   const pins = await all(
@@ -309,6 +507,159 @@ export const getEventCities = asyncHandler(async (req, res) => {
 });
 
 // ===========================================================================
+// Dynamic Calendar Events Generator per Month
+// ===========================================================================
+
+/**
+ * Ensures that every month has calendar events for all supported cities and categories.
+ */
+async function ensureCalendarEventsForMonth(month) {
+  if (!/^\d{4}-\d{2}$/.test(month)) return;
+
+  try {
+    const existing = await all(
+      `SELECT COUNT(*) AS c FROM events WHERE event_date LIKE ?`,
+      [`${month}%`]
+    );
+
+    if (existing[0]?.c >= 10) return; // Month already has sufficient events
+
+    const cities = [
+      "Karachi",
+      "Lahore",
+      "Islamabad",
+      "Rawalpindi",
+      "Faisalabad",
+      "Multan",
+      "Peshawar",
+      "Quetta",
+    ];
+
+    const cityCoords = {
+      Karachi: [24.8607, 67.0011],
+      Lahore: [31.5204, 74.3587],
+      Islamabad: [33.6844, 73.0479],
+      Rawalpindi: [33.5651, 73.0169],
+      Faisalabad: [31.4180, 73.0790],
+      Multan: [30.1575, 71.5249],
+      Peshawar: [34.0151, 71.5249],
+      Quetta: [30.1798, 66.9750],
+    };
+
+    const templates = [
+      {
+        title: "Anime & Gaming Grand Expo",
+        category: "Fan Convention",
+        venue: "Expo Center",
+        days: ["02", "15", "28"],
+        start: "10:00",
+        end: "20:00",
+        price: 1500,
+        organizer: "FandomVerse Events",
+        image: "assets/images/events/anime_expo_2025.jpg",
+      },
+      {
+        title: "Cosplay Cosmos & Costume Meetup",
+        category: "Cosplay Meetup",
+        venue: "Arts & Culture Center",
+        days: ["05", "18", "25"],
+        start: "15:00",
+        end: "19:30",
+        price: 0,
+        organizer: "Local Cosplay Guild",
+        image: "assets/images/events/fan_convention.jpg",
+      },
+      {
+        title: "One Piece & Shonen Fan Gathering",
+        category: "Fan Meetup",
+        venue: "Community Fan Hub",
+        days: ["08", "20"],
+        start: "17:00",
+        end: "20:30",
+        price: 0,
+        organizer: "Grand Line Club",
+        image: "assets/images/content/luffy_lore.jpg",
+      },
+      {
+        title: "Demon Slayer Movie Premiere & Screening",
+        category: "Screening",
+        venue: "IMAX Grand Cinema",
+        days: ["10", "22", "29"],
+        start: "19:00",
+        end: "22:00",
+        price: 1000,
+        organizer: "Anime Screenings Co.",
+        image: "assets/images/content/demon_slayer.jpg",
+      },
+      {
+        title: "VALORANT & TEKKEN 8 Championship",
+        category: "Gaming Tournament",
+        venue: "Nexus Esports Arena",
+        days: ["12", "24"],
+        start: "13:00",
+        end: "21:00",
+        price: 500,
+        organizer: "Esports Alliance",
+        image: "assets/images/content/gojo_jjk.jpg",
+      },
+      {
+        title: "Cosplay Prop & Wig Styling Workshop",
+        category: "Workshop",
+        venue: "Creative Arts Studio",
+        days: ["14", "26"],
+        start: "14:00",
+        end: "18:00",
+        price: 800,
+        organizer: "Cosplay Crafters Guild",
+        image: "assets/images/events/anime_expo_2025.jpg",
+      },
+    ];
+
+    for (const city of cities) {
+      const coords = cityCoords[city] || [24.8607, 67.0011];
+      for (const t of templates) {
+        for (const d of t.days) {
+          const eventDate = `${month}-${d}`;
+          const lat = +(coords[0] + (Math.random() - 0.5) * 0.03).toFixed(6);
+          const lng = +(coords[1] + (Math.random() - 0.5) * 0.03).toFixed(6);
+
+          await run(
+            `INSERT INTO events (
+              title, description, category, city_name, venue_name, address,
+              latitude, longitude, event_date, start_time, end_time,
+              ticket_price, currency, organizer, capacity, attendees_count,
+              is_featured, image_url
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              `${city} ${t.title}`,
+              `Exciting ${t.category} event in ${city}! Join fellow fans for anime screenings, cosplay contests, and gaming.`,
+              t.category,
+              city,
+              `${t.venue} ${city}`,
+              `${t.venue}, ${city}`,
+              lat,
+              lng,
+              eventDate,
+              t.start,
+              t.end,
+              t.price,
+              "PKR",
+              t.organizer,
+              500,
+              230,
+              1,
+              t.image,
+            ]
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error auto-seeding calendar events:", err);
+  }
+}
+
+// ===========================================================================
 // GET /api/events/calendar?month=YYYY-MM
 // Events grouped per day for the Calendar screen.
 // ===========================================================================
@@ -322,7 +673,9 @@ export const getEventCalendar = asyncHandler(async (req, res) => {
     });
   }
 
-  const cacheKey = `events:calendar:${month}:${req.query.city || "all"}`;
+  await ensureCalendarEventsForMonth(month);
+
+  const cacheKey = `events:calendar:${month}:${req.query.city || "all"}:${req.query.category || "all"}`;
   const cached = await cache.get(cacheKey);
   if (cached) return res.json({ success: true, ...cached, cached: true });
 
@@ -616,7 +969,7 @@ export const getMySavedEvents = asyncHandler(async (req, res) => {
 });
 
 // ===========================================================================
-// POST /api/events/:id/tickets   -> simulated booking
+// POST /api/events/:id/tickets   -> simulated booking (starts as 'pending')
 // ===========================================================================
 export const bookTicket = asyncHandler(async (req, res) => {
   const eventId = req.params.id;
@@ -645,15 +998,15 @@ export const bookTicket = asyncHandler(async (req, res) => {
   }
 
   const existing = await get(
-    `SELECT id, ticket_code FROM event_tickets
-     WHERE user_id = ? AND event_id = ? AND status = 'confirmed'`,
+    `SELECT id, ticket_code, status FROM event_tickets
+     WHERE user_id = ? AND event_id = ? AND status IN ('confirmed', 'pending')`,
     [userId, eventId]
   );
 
   if (existing) {
     return res.status(400).json({
       success: false,
-      message: "You already have a ticket for this event. Open My Tickets to view it.",
+      message: `You already have a ticket (${existing.status}) for this event. Open My Tickets to view or confirm it.`,
       ticket_code: existing.ticket_code,
     });
   }
@@ -666,7 +1019,7 @@ export const bookTicket = asyncHandler(async (req, res) => {
     `INSERT INTO event_tickets
        (event_id, user_id, quantity, unit_price, total_price, currency,
         ticket_code, seat_number, status)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmed')`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
     [
       event.id,
       userId,
@@ -679,16 +1032,11 @@ export const bookTicket = asyncHandler(async (req, res) => {
     ]
   );
 
-  await run(`UPDATE events SET attendees_count = attendees_count + ? WHERE id = ?`, [
-    quantity,
-    event.id,
-  ]);
-
   await notify({
     userId,
     actorId: null,
     type: "system",
-    message: `Your ticket for "${event.title}" is confirmed. Ticket code ${ticketCode}.`,
+    message: `Your ticket for "${event.title}" is reserved (On Pending). Please confirm your booking to activate pass. Code: ${ticketCode}.`,
     referenceId: Number(event.id),
   });
 
@@ -709,8 +1057,67 @@ export const bookTicket = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     success: true,
-    message: "Booking confirmed (simulated - no real payment taken)",
+    message: "Ticket reserved (On Pending). Please confirm your booking to activate.",
     ticket: { ...ticket, days_until: daysUntil(ticket.event_date) },
+  });
+});
+
+// ===========================================================================
+// POST /api/events/tickets/:ticketId/confirm  -> confirm ticket pass
+// ===========================================================================
+export const confirmTicket = asyncHandler(async (req, res) => {
+  const ticketId = req.params.ticketId;
+  const userId = req.user.id;
+
+  const ticket = await get(
+    `SELECT t.id, t.event_id, t.quantity, t.status, e.title
+       FROM event_tickets t
+       JOIN events e ON e.id = t.event_id
+      WHERE t.id = ? AND t.user_id = ?`,
+    [ticketId, userId]
+  );
+
+  if (!ticket) {
+    return res.status(404).json({ success: false, message: "Ticket not found" });
+  }
+
+  if (ticket.status === "confirmed") {
+    return res.json({ success: true, message: "Ticket is already confirmed" });
+  }
+
+  await run(`UPDATE event_tickets SET status = 'confirmed' WHERE id = ?`, [ticket.id]);
+  await run(`UPDATE events SET attendees_count = attendees_count + ? WHERE id = ?`, [
+    ticket.quantity || 1,
+    ticket.event_id,
+  ]);
+
+  await notify({
+    userId,
+    actorId: null,
+    type: "system",
+    message: `Your ticket for "${ticket.title}" has been confirmed!`,
+    referenceId: Number(ticket.event_id),
+  });
+
+  await cache.invalidate("events:");
+
+  const updated = await get(
+    `SELECT
+       t.id, t.ticket_code, t.quantity, t.unit_price, t.total_price, t.currency,
+       t.seat_number, t.status, t.booked_at,
+       e.id AS event_id, e.title, e.category, e.city_name AS city,
+       e.venue_name AS venue, e.address, e.latitude, e.longitude,
+       e.event_date, e.end_date, e.start_time, e.end_time, e.organizer
+     FROM event_tickets t
+     JOIN events e ON e.id = t.event_id
+     WHERE t.id = ?`,
+    [ticket.id]
+  );
+
+  res.json({
+    success: true,
+    message: "Ticket confirmed successfully!",
+    ticket: { ...updated, days_until: daysUntil(updated.event_date) },
   });
 });
 
@@ -837,6 +1244,7 @@ export default {
   toggleSaveEvent,
   getMySavedEvents,
   bookTicket,
+  confirmTicket,
   getMyTickets,
   getTicketById,
   cancelTicket,

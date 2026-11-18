@@ -1,21 +1,24 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/admin_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../services/admin_service.dart';
 import '../../theme/admin_theme.dart';
 import '../../widgets/admin_widgets.dart';
+import '../../widgets/fandom_logo.dart';
+import '../login_screen.dart';
 import 'admin_backup_section.dart';
 import 'admin_categories_section.dart';
 import 'admin_content_section.dart';
 import 'admin_dashboard_section.dart';
 import 'admin_events_section.dart';
 import 'admin_logs_section.dart';
-import 'admin_login_screen.dart';
 import 'admin_notifications_section.dart';
+import 'admin_orders_section.dart';
 import 'admin_products_section.dart';
 import 'admin_security_section.dart';
+import 'admin_tickets_section.dart';
 import 'admin_users_section.dart';
 
 /// One entry in the admin navigation.
@@ -59,6 +62,12 @@ const List<AdminNavItem> adminNavItems = [
     builder: _events,
   ),
   AdminNavItem(
+    id: 'tickets',
+    label: 'Tickets',
+    icon: Icons.confirmation_number_rounded,
+    builder: _tickets,
+  ),
+  AdminNavItem(
     id: 'logs',
     label: 'Analytics',
     icon: Icons.bar_chart_rounded,
@@ -75,6 +84,12 @@ const List<AdminNavItem> adminNavItems = [
     label: 'Products',
     icon: Icons.storefront_rounded,
     builder: _products,
+  ),
+  AdminNavItem(
+    id: 'orders',
+    label: 'Orders',
+    icon: Icons.local_shipping_rounded,
+    builder: _orders,
   ),
   AdminNavItem(
     id: 'categories',
@@ -100,7 +115,9 @@ Widget _dashboard(BuildContext context) => const AdminDashboardSection();
 Widget _users(BuildContext context) => const AdminUsersSection();
 Widget _content(BuildContext context) => const AdminContentSection();
 Widget _events(BuildContext context) => const AdminEventsSection();
+Widget _tickets(BuildContext context) => const AdminTicketsSection();
 Widget _products(BuildContext context) => const AdminProductsSection();
+Widget _orders(BuildContext context) => const AdminOrdersSection();
 Widget _categories(BuildContext context) => const AdminCategoriesSection();
 Widget _notifications(BuildContext context) =>
     const AdminNotificationsSection();
@@ -190,18 +207,21 @@ class _AdminShellState extends State<AdminShell> {
       confirmLabel: 'Sign out',
       destructive: true,
     );
-    if (!confirmed || !mounted) return;
+    if (confirmed != true || !mounted) return;
 
-    await context.read<AdminProvider>().signOut();
+    final adminProvider = context.read<AdminProvider>();
+    final authProvider = context.read<AuthProvider>();
+
+    await adminProvider.signOut();
+    await authProvider.logout();
     if (!mounted) return;
 
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const AdminLoginScreen()),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     return AdminNavScope(
@@ -269,21 +289,35 @@ class _AdminShellState extends State<AdminShell> {
           ),
           child: Row(
             children: [
+              if (Navigator.of(context).canPop()) ...[
+                IconButton(
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  color: AdminTheme.textPrimary,
+                  tooltip: 'Back to App',
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+                const SizedBox(width: 4),
+              ],
               if (!isDesktop) ...[
                 IconButton(
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                   icon: const Icon(Icons.menu_rounded),
                   color: AdminTheme.textPrimary,
                   onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                 ),
-                SizedBox(width: isMobile ? 4 : 8),
+                const SizedBox(width: 8),
+                const FandomLogoWidget(height: 28),
+                const Spacer(),
               ],
-              // Search pill: flexible on mobile, fixed on desktop
-              Expanded(
-                flex: isDesktop ? 0 : 1,
-                child: Container(
-                  width: isDesktop ? 340 : null,
+              if (isDesktop) ...[
+                const FandomLogoWidget(height: 30),
+                const SizedBox(width: 14),
+                // Search pill: fixed on desktop
+                Container(
+                  width: 340,
                   height: 38,
                   padding: const EdgeInsets.symmetric(horizontal: 10),
                   decoration: BoxDecoration(
@@ -308,7 +342,7 @@ class _AdminShellState extends State<AdminShell> {
                       Expanded(
                         child: TextField(
                           decoration: InputDecoration(
-                            hintText: isMobile ? 'Search...' : 'Search users, content, events...',
+                            hintText: 'Search users, content, events...',
                             hintStyle: TextStyle(
                               color: AdminTheme.textMuted,
                               fontSize: 12,
@@ -326,9 +360,8 @@ class _AdminShellState extends State<AdminShell> {
                     ],
                   ),
                 ),
-              ),
-              if (isDesktop) const Spacer(),
-              if (!isDesktop) const SizedBox(width: 4),
+                const Spacer(),
+              ],
               // Notification bell with pink dot
               Stack(
                 clipBehavior: Clip.none,
@@ -487,25 +520,10 @@ class _AdminShellState extends State<AdminShell> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 28,
-              height: 28,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [Color(0xFF7047EB), Color(0xFF9333EA)],
-                ),
-              ),
-              child: Center(
-                child: Text(
-                  name[0].toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                  ),
-                ),
-              ),
+            AdminAvatar(
+              name: name,
+              imageUrl: provider.admin?['avatar']?.toString(),
+              size: 28,
             ),
             if (!isMobile) ...[
               const SizedBox(width: 8),
@@ -566,27 +584,34 @@ class _AdminShellState extends State<AdminShell> {
           children: [
             // Top brand
             Padding(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
               child: Row(
                 children: [
-                  ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
-                    ).createShader(bounds),
-                    child: const Icon(
-                      Icons.auto_awesome,
-                      color: Colors.white,
-                      size: 22,
+                  const FandomLogoWidget(height: 32),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFEC4899), Color(0xFF8B5CF6)],
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 9),
-                  Text(
-                    'FandomVerse',
-                    style: GoogleFonts.outfit(
-                      color: AdminTheme.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.3,
+                    child: const Text(
+                      'ADMIN',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.1,
+                      ),
                     ),
                   ),
                 ],
@@ -624,10 +649,19 @@ class _AdminShellState extends State<AdminShell> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.favorite_border_rounded,
-                    color: Color(0xFFEC4899),
-                    size: 18,
+                  Row(
+                    children: [
+                      const FandomLogoWidget(height: 20),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Community Hub',
+                        style: TextStyle(
+                          color: AdminTheme.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -846,11 +880,13 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
               children: [
                 Row(
                   children: [
+                    const FandomLogoWidget(height: 32),
+                    const SizedBox(width: 12),
                     Container(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: AdminTheme.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: provider.lightMode ? Colors.black : Colors.white,
                           width: 1.0,
@@ -859,10 +895,10 @@ class _EditProfileDialogState extends State<_EditProfileDialog> {
                       child: Icon(
                         Icons.manage_accounts_rounded,
                         color: AdminTheme.violet,
-                        size: 22,
+                        size: 20,
                       ),
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
