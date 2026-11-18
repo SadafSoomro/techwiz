@@ -1,19 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
@@ -32,70 +19,97 @@
   <title>FANDOM VERSE</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- The boot splash artwork is the very first thing the user sees, so start
-       downloading it while the rest of the document is still being parsed
-       instead of waiting for the <img> to be reached. -->
-  <link rel="preload" as="image" href="assets/assets/images/splash_bg.jpg">
+  <!-- Preload the logo for instant paint without delay -->
+  <link rel="preload" as="image" href="assets/assets/images/fandom_logo.png">
 
-  <!-- Matches the app background so the browser never flashes white while the
-       Flutter bundle boots. -->
   <style>
     html, body {
       margin: 0;
       padding: 0;
-      background-color: #0B0F19;
+      background-color: #080612;
       overflow: hidden;
+      height: 100%;
+      width: 100%;
     }
 
-    /* ---------------------------------------------------------------
-       Boot splash: the FANDOM VERSE key art is shown together with a
-       loading bar while the Flutter engine starts, then faded out by
-       web/flutter_bootstrap.js once the app has painted.
-       --------------------------------------------------------------- */
     #fv-boot-splash {
       position: fixed;
       inset: 0;
       z-index: 9999;
-      background-color: #05070d;
-      transition: opacity 0.6s ease;
+      background: radial-gradient(circle at center, #140d2b 0%, #080612 75%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.5s ease;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     }
 
-    #fv-boot-splash .fv-art {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: center;
+    #fv-boot-splash .fv-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    #fv-boot-splash .fv-logo {
+      width: 130px;
+      height: 130px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 30px rgba(168, 85, 247, 0.45));
+      animation: fv-pulse 2.2s infinite ease-in-out;
+    }
+
+    @keyframes fv-pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.04); opacity: 0.95; }
+    }
+
+    #fv-boot-splash .fv-title {
+      margin-top: 18px;
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: #ffffff;
+      text-shadow: 0 0 16px rgba(168, 85, 247, 0.35);
+    }
+
+    #fv-boot-splash .fv-subtitle {
+      margin-top: 6px;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.65);
+      letter-spacing: 0.8px;
     }
 
     #fv-boot-splash .fv-loading {
       position: absolute;
       left: 0;
       right: 0;
-      bottom: 8%;
+      bottom: 45px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       text-align: center;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     }
 
     #fv-boot-splash .fv-bar-wrap {
-      width: 240px;
-      padding: 3px;
-      background: rgba(15, 23, 42, 0.75);
+      width: 170px;
+      padding: 2.5px;
+      background: rgba(19, 17, 39, 0.85);
       border-radius: 999px;
       border: 1px solid rgba(168, 85, 247, 0.35);
-      box-shadow: 0 0 16px rgba(168, 85, 247, 0.25);
+      box-shadow: 0 0 14px rgba(168, 85, 247, 0.2);
     }
 
     #fv-boot-splash .fv-bar {
       width: 100%;
-      height: 6px;
+      height: 5px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.08);
       overflow: hidden;
       position: relative;
     }
@@ -104,13 +118,13 @@
       width: 0%;
       height: 100%;
       border-radius: 999px;
-      background: linear-gradient(90deg, #7c3aed, #a855f7, #ec4899);
+      background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
       transition: width 0.15s ease-out;
       box-shadow: 0 0 8px #a855f7;
     }
 
     #fv-boot-splash .fv-text-row {
-      margin-top: 12px;
+      margin-top: 11px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -119,24 +133,28 @@
 
     #fv-boot-splash .fv-text {
       margin: 0;
-      color: rgba(255, 255, 255, 0.85);
-      font-size: 13px;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 11.5px;
       font-weight: 500;
       letter-spacing: 0.5px;
     }
 
     #fv-boot-splash .fv-pct {
       color: #c084fc;
-      font-size: 13px;
+      font-size: 11.5px;
       font-weight: 700;
       letter-spacing: 0.5px;
     }
   </style>
 </head>
 <body>
-  <!-- Branded boot splash - artwork + loading bar with live percentage -->
+  <!-- Clean Centered Brand Splash (Zero Cropping) -->
   <div id="fv-boot-splash">
-    <img class="fv-art" src="assets/assets/images/splash_bg.jpg" alt="FANDOM VERSE" />
+    <div class="fv-center">
+      <img class="fv-logo" src="assets/assets/images/fandom_logo.png" alt="FANDOM VERSE" />
+      <div class="fv-title">FANDOM VERSE</div>
+      <div class="fv-subtitle">Your Ultimate Fandom Universe</div>
+    </div>
     <div class="fv-loading">
       <div class="fv-bar-wrap">
         <div class="fv-bar">
@@ -144,7 +162,7 @@
         </div>
       </div>
       <div class="fv-text-row">
-        <p class="fv-text">Loading your fandom universe...</p>
+        <p class="fv-text">Loading your universe...</p>
         <span class="fv-pct" id="fv-pct">0%</span>
       </div>
     </div>
@@ -161,7 +179,7 @@
         if (pct) pct.textContent = cur + '%';
       };
       var timer = setInterval(function() {
-        if (cur < 90) {
+        if (cur < 92) {
           cur += 1;
           if (fill) fill.style.width = cur + '%';
           if (pct) pct.textContent = cur + '%';
@@ -174,10 +192,6 @@
     })();
   </script>
 
-  <!--
-    The bootstrap script is customised in web/flutter_bootstrap.js so the
-    splash above stays on screen until the app is really ready.
-  -->
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
