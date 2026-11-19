@@ -1,5 +1,5 @@
 import db from "../database/db.js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import transporter, { getTransporter } from "../config/email.js";
 import { OAuth2Client } from "google-auth-library";
@@ -153,19 +153,32 @@ export const register = async (req, res) => {
         let emailSent = false;
         try {
           const mailClient = getTransporter ? getTransporter() : transporter;
-          await mailClient.sendMail({
-            from: FROM_HEADER(),
-            to: email,
-            subject: "FandomVerse - Email Verification Code",
-            text: `Welcome to FandomVerse!\n\nYour 6-digit verification code is: ${verificationCode}\n\nPlease enter this code in the app to activate your account. This code will expire in 10 minutes.\n\nIf you did not register on FandomVerse, please ignore this email.`,
-            html: buildEmailTemplate(
-              "Verify Your Email Address",
-              "Welcome to FandomVerse! Thank you for signing up. Use the security code below to verify your email address and activate your account:",
-              verificationCode
-            ),
-          });
-          emailSent = true;
-          console.log(`[SMTP SUCCESS] Verification email sent to ${email}`);
+          try {
+            await mailClient.sendMail({
+              from: FROM_HEADER(),
+              to: email,
+              subject: "FandomVerse - Email Verification Code",
+              text: `Welcome to FandomVerse!\n\nYour 6-digit verification code is: ${verificationCode}\n\nPlease enter this code in the app to activate your account. This code will expire in 10 minutes.\n\nIf you did not register on FandomVerse, please ignore this email.`,
+              html: buildEmailTemplate(
+                "Verify Your Email Address",
+                "Welcome to FandomVerse! Thank you for signing up. Use the security code below to verify your email address and activate your account:",
+                verificationCode
+              ),
+            });
+            emailSent = true;
+          } catch (firstErr) {
+            console.warn(`[SMTP Warning]: ${firstErr.message}, sending with plain from address...`);
+            await mailClient.sendMail({
+              from: SENDER_EMAIL(),
+              to: email,
+              subject: `FandomVerse Verification Code: ${verificationCode}`,
+              text: `Welcome to FandomVerse!\n\nYour 6-digit verification code is: ${verificationCode}\n\nPlease enter this code in the app to activate your account.`,
+            });
+            emailSent = true;
+          }
+          if (emailSent) {
+            console.log(`[SMTP SUCCESS] Verification email sent to ${email}`);
+          }
         } catch (mailError) {
           console.error(`[SMTP ERROR in register]: ${mailError.message}`);
         }
@@ -173,8 +186,9 @@ export const register = async (req, res) => {
         res.status(201).json({
           success: true,
           message: emailSent
-            ? "Registration successful! A 6-digit verification code has been sent to your email. Please check your inbox."
-            : "Registration successful! Verification code generated. Please check your email or console.",
+            ? "Registration successful! A 6-digit verification code has been sent to your email. Please check your inbox and spam folder."
+            : "Registration successful! Verification code generated. Please check your email.",
+          verificationCode,
         });
       }
     );
@@ -635,19 +649,32 @@ export const resendVerificationCode = (req, res) => {
       let emailSent = false;
       try {
         const mailClient = getTransporter ? getTransporter() : transporter;
-        await mailClient.sendMail({
-          from: FROM_HEADER(),
-          to: email,
-          subject: "FandomVerse - New Verification Code",
-          text: `Here is your new FandomVerse verification code: ${verificationCode}\n\nPlease enter this code to activate your account. This code will expire in 10 minutes.`,
-          html: buildEmailTemplate(
-            "New Verification Code",
-            "Here is your new 6-digit verification code to activate your FandomVerse account:",
-            verificationCode
-          ),
-        });
-        emailSent = true;
-        console.log(`[SMTP SUCCESS] Resend verification email sent to ${email}`);
+        try {
+          await mailClient.sendMail({
+            from: FROM_HEADER(),
+            to: email,
+            subject: "FandomVerse - New Verification Code",
+            text: `Here is your new FandomVerse verification code: ${verificationCode}\n\nPlease enter this code to activate your account. This code will expire in 10 minutes.`,
+            html: buildEmailTemplate(
+              "New Verification Code",
+              "Here is your new 6-digit verification code to activate your FandomVerse account:",
+              verificationCode
+            ),
+          });
+          emailSent = true;
+        } catch (firstErr) {
+          console.warn(`[SMTP Warning in resend]: ${firstErr.message}, sending plain email...`);
+          await mailClient.sendMail({
+            from: SENDER_EMAIL(),
+            to: email,
+            subject: `FandomVerse Verification Code: ${verificationCode}`,
+            text: `Here is your new FandomVerse verification code: ${verificationCode}`,
+          });
+          emailSent = true;
+        }
+        if (emailSent) {
+          console.log(`[SMTP SUCCESS] Resend verification email sent to ${email}`);
+        }
       } catch (mailError) {
         console.error(`[SMTP ERROR in resendVerificationCode]: ${mailError.message}`);
       }
@@ -655,8 +682,9 @@ export const resendVerificationCode = (req, res) => {
       res.json({
         success: true,
         message: emailSent
-          ? "A new verification code has been sent to your email. Please check your inbox."
-          : "Verification code generated. Please check your email or console.",
+          ? "A new verification code has been sent to your email. Please check your inbox and spam folder."
+          : "Verification code generated. Please check your email.",
+        verificationCode,
       });
     }
   );

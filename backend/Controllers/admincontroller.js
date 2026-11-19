@@ -13,7 +13,7 @@
  *   - Logs & analytics (admin_logs stream + level breakdown)
  */
 
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";

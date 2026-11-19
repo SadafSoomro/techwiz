@@ -15,25 +15,20 @@ import 'providers/shop_provider.dart';
 import 'screens/admin/admin_shell.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
-import 'services/admin_storage.dart';
-import 'services/auth_storage.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   GoogleFonts.config.allowRuntimeFetching = false;
-  unawaited(_warmUpFonts());
-
-  await Future.wait([
-    AuthStorage.preload(),
-    AdminStorage.preload(),
-  ]);
 
   PaintingBinding.instance.imageCache.maximumSize = 150;
   PaintingBinding.instance.imageCache.maximumSizeBytes = 120 << 20;
 
+  // Paint the first frame immediately. Storage used to be awaited here, so a
+  // slow SharedPreferences open left the browser on a blank black page.
   runApp(const MyApp());
+  unawaited(_warmUpFonts());
 }
 
 Future<void> _warmUpFonts() async {
@@ -94,22 +89,29 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
   @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  bool _splashDone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future<void>.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _splashDone = true);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    if (!_splashDone) return const _PosterSplash();
+
     final auth = context.watch<AuthProvider>();
-    if (auth.isLoading) {
-      return const Scaffold(
-        backgroundColor: Color(0xFF080612),
-        body: Center(
-          child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFA855F7)),
-          ),
-        ),
-      );
-    }
     if (auth.isAuthenticated) {
       final isAdmin =
           (auth.user?['role'] ?? 'user').toString().toLowerCase() == 'admin';
@@ -118,3 +120,24 @@ class AuthGate extends StatelessWidget {
     return const LoginScreen();
   }
 }
+
+/// Full poster, fitted inside the screen. Contain keeps the logo and the
+/// tagline visible instead of cropping them off the edges.
+class _PosterSplash extends StatelessWidget {
+  const _PosterSplash();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Color(0xFF07051A),
+      body: SizedBox.expand(
+        child: Image.asset(
+          'assets/images/splash_bg.jpg',
+          fit: BoxFit.contain,
+          alignment: Alignment.center,
+        ),
+      ),
+    );
+  }
+}
+

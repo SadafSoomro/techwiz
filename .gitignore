@@ -9,6 +9,8 @@ __pycache__/
 # Local SQLite database + generated API test reports
 backend/mydb.sqlite
 backend/mydb.sqlite-journal
+backend/mydb.sqlite-shm
+backend/mydb.sqlite-wal
 backend/tests/report.txt
 backend/tests/events_report.txt
 backend/tests/content_report.txt

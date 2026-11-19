@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_alert.dart';
+import 'admin/admin_shell.dart';
+import 'home_screen.dart';
 import 'login_screen.dart';
 
 class VerifyEmailScreen extends StatefulWidget {
@@ -26,6 +28,14 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
   bool _isResending = false;
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.initialCode != null && widget.initialCode!.isNotEmpty) {
+      _codeController.text = widget.initialCode!;
+    }
+  }
+
+  @override
   void dispose() {
     _codeController.dispose();
     super.dispose();
@@ -43,15 +53,13 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
     if (!mounted) return;
 
     if (response.success) {
-      await showSuccessAlert(
-        context,
-        'Email verified successfully!\n\nPlease log in with your email and password to access your account.',
-        title: 'Email Verified',
-      );
-      if (!mounted) return;
+      final isAdmin =
+          (authProvider.user?['role'] ?? 'user').toString().toLowerCase() == 'admin';
 
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(
+          builder: (_) => isAdmin ? const AdminShell() : const HomeScreen(),
+        ),
         (route) => false,
       );
     } else {
@@ -69,6 +77,10 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
 
     if (!mounted) return;
     if (response.success) {
+      final newCode = response.data?['verificationCode']?.toString();
+      if (newCode != null && newCode.isNotEmpty) {
+        _codeController.text = newCode;
+      }
       await showSuccessAlert(
         context,
         'A new verification code has been sent to:\n${widget.email}\n\nPlease check your inbox and spam folder.',

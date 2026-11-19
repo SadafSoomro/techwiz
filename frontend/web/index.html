@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="description" content="FANDOM VERSE - Your Fandom. All in One Place.">
 
   <!-- iOS meta tags & icons -->
@@ -14,23 +16,49 @@
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png" />
 
   <title>FANDOM VERSE</title>
   <link rel="manifest" href="manifest.json">
 
   <style>
-    html, body {
+    html,
+    body {
       margin: 0;
       padding: 0;
-      background-color: #080612;
+      background-color: #07051a;
       overflow: hidden;
       height: 100%;
       width: 100%;
     }
+
+    /* The poster is a background, not an <img>, so the browser cannot
+       blow it up to its pixel size and crop the logo. */
+    #boot-splash {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      z-index: 9999;
+      background-color: #07051a;
+      background-image: url("splash.jpg");
+      background-repeat: no-repeat;
+      background-position: center center;
+      background-size: contain;
+    }
   </style>
 </head>
+
 <body>
+  <div id="boot-splash"></div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var splash = document.getElementById('boot-splash');
+      if (splash) splash.remove();
+    });
+  </script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
+
 </html>

@@ -3,8 +3,23 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 class ApiConfig {
-  // Base URL auto-detection based on device/platform
+  // Base URL auto-detection based on device/platform or environment variables
   static String get baseUrl {
+    const envUrl = String.fromEnvironment('API_URL', defaultValue: '');
+    const viteUrl = String.fromEnvironment('VITE_API_URL', defaultValue: '');
+    const nextUrl = String.fromEnvironment('NEXT_PUBLIC_API_URL', defaultValue: '');
+
+    final configuredUrl = envUrl.isNotEmpty
+        ? envUrl
+        : (viteUrl.isNotEmpty ? viteUrl : nextUrl);
+
+    if (configuredUrl.isNotEmpty) {
+      final clean = configuredUrl.endsWith('/')
+          ? configuredUrl.substring(0, configuredUrl.length - 1)
+          : configuredUrl;
+      return clean.endsWith('/api') ? clean : '$clean/api';
+    }
+
     if (kIsWeb) {
       final host = Uri.base.host.isNotEmpty ? Uri.base.host : 'localhost';
       return 'http://$host:5000/api';

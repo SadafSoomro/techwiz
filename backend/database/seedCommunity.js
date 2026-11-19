@@ -9,7 +9,7 @@
  * Safe to run multiple times - existing rows are skipped.
  */
 
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import db from "./db.js";
 import { initCommunitySchema } from "./communitySchema.js";
 

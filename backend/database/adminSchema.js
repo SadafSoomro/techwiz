@@ -9,7 +9,7 @@
  * written so that "already exists" is a harmless no-op.
  */
 
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import db from "./db.js";
 
 /** Built-in administrator account. */

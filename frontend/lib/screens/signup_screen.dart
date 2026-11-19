@@ -51,10 +51,12 @@ class _SignupScreenState extends State<SignupScreen> {
       );
       if (!mounted) return;
 
+      final code = response.data?['verificationCode']?.toString();
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
           builder: (_) => VerifyEmailScreen(
             email: _emailController.text.trim(),
+            initialCode: code,
           ),
         ),
       );

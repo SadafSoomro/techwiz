@@ -18,12 +18,17 @@ class AuthProvider extends ChangeNotifier {
   String? _token;
   AuthStatus _status = AuthStatus.initial;
   bool _isLoading = false;
+  bool _sessionReady = false;
   String? _errorMessage;
 
   Map<String, dynamic>? get user => _user;
   String? get token => _token;
   AuthStatus get status => _status;
   bool get isLoading => _isLoading;
+
+  /// False only while the saved session is being read on startup.
+  /// Login / logout keep using [isLoading] and must not blank the whole app.
+  bool get isSessionReady => _sessionReady;
   bool get isAuthenticated =>
       _status == AuthStatus.authenticated && _token != null;
   String? get errorMessage => _errorMessage;
@@ -31,7 +36,27 @@ class AuthProvider extends ChangeNotifier {
   AuthProvider() {
     // Deferred: restoring the session calls notifyListeners(), which must not
     // happen while the widget tree is still building the provider.
-    Future.microtask(checkAuthStatus);
+    Future.microtask(_restoreSession);
+  }
+
+  /// Reads the saved session without ever flipping [isLoading].
+  ///
+  /// [isLoading] used to cover this path too, and the root gate treated any
+  /// loading flag as "replace the app with a black screen". A slow or stuck
+  /// storage read then left that black screen up. This path is capped so the
+  /// login screen always appears.
+  Future<void> _restoreSession() async {
+    try {
+      await checkAuthStatus().timeout(const Duration(seconds: 4));
+    } catch (_) {
+      if (_status == AuthStatus.initial) {
+        _status = AuthStatus.unauthenticated;
+      }
+    } finally {
+      _isLoading = false;
+      _sessionReady = true;
+      notifyListeners();
+    }
   }
 
   void _setLoading(bool loading) {
@@ -67,26 +92,28 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  // Check saved token on app start
+  // Check saved token on app start. Does not toggle [isLoading]: callers that
+  // need a button spinner set that themselves. Storage is read once, in order,
+  // so two parallel SharedPreferences opens cannot stall the first frame.
   Future<bool> checkAuthStatus() async {
-    _setLoading(true);
     try {
+      await AuthStorage.preload().timeout(const Duration(seconds: 2));
+      await AdminStorage.preload().timeout(const Duration(seconds: 2));
       final isLoggedIn = await AuthStorage.isLoggedIn();
       if (isLoggedIn) {
         _token = await AuthStorage.getToken();
         _user = await AuthStorage.getUser();
         _status = AuthStatus.authenticated;
         await _syncAdminSession();
-        _setLoading(false);
+        notifyListeners();
         return true;
-      } else {
-        _status = AuthStatus.unauthenticated;
-        _setLoading(false);
-        return false;
       }
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return false;
     } catch (e) {
       _status = AuthStatus.unauthenticated;
-      _setLoading(false);
+      notifyListeners();
       return false;
     }
   }
@@ -148,7 +175,15 @@ class AuthProvider extends ChangeNotifier {
 
     final response = await ApiService.verifyEmail(email: email, code: code);
 
-    if (!response.success) {
+    if (response.success && response.data != null) {
+      _token = response.data!['token'];
+      _user = response.data!['user'];
+      if (_token != null && _user != null) {
+        await AuthStorage.saveSession(_token ?? '', _user);
+        await _syncAdminSession();
+        _status = AuthStatus.authenticated;
+      }
+    } else if (!response.success) {
       _setError(response.message);
     }
 
